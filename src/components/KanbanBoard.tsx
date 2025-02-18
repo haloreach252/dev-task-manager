@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import {
   monitorForElements,
   draggable,
@@ -19,38 +19,37 @@ export default function KanbanBoard() {
     { id: "task-3", title: "Task 3" },
   ]);
 
-  const listRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
+    // Make each task draggable
     tasks.forEach((task) => {
       const element = document.getElementById(task.id);
       if (element) {
         draggable({
           element,
+          getInitialData: () => ({ id: task.id }), // Attach ID for tracking
           onDragStart: () => {
             console.log(`Dragging ${task.id}`);
           },
-          onDrop({ location }) {
-            if (location.current.dropTargets.length > 0) {
-              const targetId = location.current.dropTargets[0].element.id;
-              reorderTasks(task.id, targetId);
+        });
+
+        // Make each task a drop target
+        dropTargetForElements({
+          element,
+          getData: () => ({
+            id: task.id,
+            type: "TASK",
+          }),
+          onDrop: ({ source }) => {
+            const draggedId = source.data.id as string; // Get dragged task ID
+            const targetId = task.id; // Get drop target task ID
+            if (draggedId !== targetId) {
+              reorderTasks(draggedId, targetId);
             }
           },
         });
       }
     });
 
-    // Monitor the drop container
-    if (listRef.current) {
-      dropTargetForElements({
-        element: listRef.current,
-        getData: () => ({
-          type: "TASK_DROP_ZONE",
-        }),
-      });
-    }
-
-    // Cleanup when component unmounts
     return () => {
       monitorForElements({ canMonitor: () => false });
     };
@@ -71,7 +70,7 @@ export default function KanbanBoard() {
   return (
     <div className="p-4 space-y-2 w-96 border rounded-md bg-gray-100">
       <h2 className="text-lg font-bold">Kanban Board</h2>
-      <div id="task-list" ref={listRef} className="space-y-2">
+      <div className="space-y-2">
         {tasks.map((task) => (
           <div
             key={task.id}
