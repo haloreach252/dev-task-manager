@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { supabase } from "@/lib/supabaseClient"
-import KanbanBoard from "@/components/KanbanBoard"
+//import { supabase } from "@/lib/supabaseClient"
 
 type Project = {
     id: string;
@@ -15,6 +14,7 @@ export default function ProjectsPage() {
     const [loading, setLoading] = useState(true);
     const router = useRouter();
 
+    /*
     useEffect(() => {
         const fetchSessionAndProjects = async () => {
             const { data } = await supabase.auth.getSession();
@@ -32,7 +32,7 @@ export default function ProjectsPage() {
         };
 
         fetchSessionAndProjects();
-    }, [router]);
+    }, [router]);*/
 
     if (loading) return <div className="p-8">Loading...</div>
 
