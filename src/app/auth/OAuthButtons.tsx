@@ -1,6 +1,8 @@
 "use client"
 
 import { loginWithOAuth } from "./actions"
+import { Button } from "@/components/ui/button";
+import { FaGithub, FaDiscord } from 'react-icons/fa';
 
 type OAuthProvider = "github" | "discord";
 
@@ -16,13 +18,24 @@ export default function OAuthButtons() {
     }
 
     return (
-        <div className="flex flex-col gap-4">
-            <button type='button' onClick={() => handleOAuthLogin('github')}>
-                GitHub Login
-            </button>
-            <button type='button' onClick={() => handleOAuthLogin('discord')}>
-                Discord Login
-            </button>
+        <div className='flex flex-col gap-4'>
+            <Button
+                variant='outline'
+                onClick={() => handleOAuthLogin('github')}
+                className="flex items-center justify-center gap-2"
+            >
+                <FaGithub size={18} />
+                Continue with GitHub
+            </Button>
+
+            <Button
+                variant='outline'
+                onClick={() => handleOAuthLogin('discord')}
+                className="flex items-center justify-center gap-2"
+            >
+                <FaDiscord size={18} />
+                Continue with Discord
+            </Button>
         </div>
     )
 }
