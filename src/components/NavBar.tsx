@@ -2,6 +2,16 @@ import Link from "next/link"
 import { createClient } from "@/lib/supabase"
 import LogoutButton from "./LogoutButton";
 
+type GeneratedLink = {
+    href: string;
+    name: string;
+}
+
+const userLinks: GeneratedLink[] = [
+    { href: "/projects", name: "Projects" },
+    { href: "/teams", name: "Teams" }
+]
+
 export default async function NavBar() {
     const supabase = await createClient();
 
@@ -15,7 +25,11 @@ export default async function NavBar() {
         <nav className="flex items-center justify-between p-4 bg-gray-800 text-white">
             <div className="flex gap-4">
                 <Link href="/">Home</Link>
-                {data?.user && <Link href="/projects">Projects</Link>}
+                {data?.user && (
+                    userLinks.map((link) => (
+                        <Link key={link.href} href={link.href}>{link.name}</Link>
+                    ))
+                )}
             </div>
             <div>
                 {!data?.user ? (
