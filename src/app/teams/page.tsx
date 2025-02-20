@@ -31,7 +31,7 @@ export default function TeamsDashboard() {
     <div className="p-8">
       <h1 className="text-2xl font-bold mb-4">Your Teams</h1>
       <ul className="mb-4">
-        {teams.map((team) => (
+        {teams?.map((team) => (
           <li key={team.id}>
             <Link href={`/teams/${team.id}`}>{team.name}</Link>
           </li>
