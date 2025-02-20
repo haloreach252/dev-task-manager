@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-export async function POST(
-  request: Request,
-  { params }: { params: { teamId: string } }
-) {
+export async function POST(request: Request, props: { params: Promise<{ teamId: string }> }) {
+  const params = await props.params;
   const { email } = await request.json();
   // Generate a simple invite token (consider using a more robust method)
   const token = Math.random().toString(36).substr(2, 9);
