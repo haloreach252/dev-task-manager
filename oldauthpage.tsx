@@ -7,19 +7,19 @@ export default function AuthPage() {
     const [email, setEmail] = useState("");
 
     const handleEmailLogin = async () => {
-    const { error } = await supabase.auth.signInWithOtp({ email });
-    if (error) {
-        console.error("Email login error:", error);
-    } else {
-        alert("Check your email for the login link.");
-    }
+        const { error } = await supabase.auth.signInWithOtp({ email });
+        if (error) {
+            console.error("Email login error:", error);
+        } else {
+            alert("Check your email for the login link.");
+        }
     };
 
     const handleOAuthLogin = async (provider: "github" | "discord") => {
-    const { error } = await supabase.auth.signInWithOAuth({ provider });
-    if (error) {
-        console.error(`OAuth login error with ${provider}:`, error);
-    }
+        const { error } = await supabase.auth.signInWithOAuth({ provider });
+        if (error) {
+            console.error(`OAuth login error with ${provider}:`, error);
+        }
     };
 
     return (

@@ -1,46 +1,27 @@
-"use client"
-
 import Link from "next/link"
-import { useEffect, useState } from "react"
-import { supabase } from "@/lib/supabaseClient"
+import { createClient } from "@/lib/supabase"
+import LogoutButton from "./LogoutButton";
 
-export default function NavBar() {
-    const [session, setSession] = useState<any>(null);
+export default async function NavBar() {
+    const supabase = await createClient();
 
-    useEffect(() => {
-        // Fetch initial session
-        const getSession = async () => {
-            const { data } = await supabase.auth.getSession();
-            setSession(data.session);
-        };
+    const { data, error } = await supabase.auth.getUser();
 
-        getSession();
-
-        // Listen for auth changes
-        const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-            setSession(session);
-        });
-
-        return () => listener.subscription.unsubscribe();
-    }, []);
-
-    const handleLogout  = async () => {
-        await supabase.auth.signOut();
-    };
+    if (error) {
+        //console.log("Supabase NavBar error: ", error);
+    }
 
     return (
         <nav className="flex items-center justify-between p-4 bg-gray-800 text-white">
             <div className="flex gap-4">
                 <Link href="/">Home</Link>
-                {session && <Link href="/projects">Projects</Link>}
+                {data?.user && <Link href="/projects">Projects</Link>}
             </div>
             <div>
-                {!session ? (
+                {!data?.user ? (
                 <Link href="/auth">Login or Signup</Link>
                 ) : (
-                <button onClick={handleLogout} className="hover:underline">
-                    Logout
-                </button>
+                    <LogoutButton />
                 )}
             </div>
         </nav>

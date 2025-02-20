@@ -18,6 +18,12 @@ export async function login(formData: FormData) {
     const { error } = await supabase.auth.signInWithPassword(data);
 
     if (error) {
+        if (error.message === 'Email not confirmed') {
+            redirect('/auth/confirm-email');
+        }
+
+        console.log("User Login with email error: ", error);
+        console.log("Message only: ", error.message);
         redirect('/error');
     }
 
@@ -39,6 +45,7 @@ export async function signup(formData: FormData) {
         redirect('/error');
     }
 
+    // TODO: In the future, redirect the user to the page to check their email to confirm
     revalidatePath('/', 'layout')
     redirect('/');
 }
@@ -46,14 +53,20 @@ export async function signup(formData: FormData) {
 export async function loginWithOAuth(provider: "github" | "discord") {
     const supabase = await createClient();
 
-    const { error } = await supabase.auth.signInWithOAuth({ provider });
+    const { data, error } = await supabase.auth.signInWithOAuth({ provider, options: {
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/callback`
+    } });
 
     if (error) {
-        redirect('/error');
+        console.log("OAuth login error:", error);
+        return null;
+        //redirect('/error');
     }
 
+    return data?.url;
+    /*
     revalidatePath('/', 'layout');
-    redirect('/');
+    redirect('/');*/
 }
 
 export async function loginWithOtp(formData: FormData) {
