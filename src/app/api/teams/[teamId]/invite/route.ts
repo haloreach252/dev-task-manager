@@ -1,20 +1,27 @@
-import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
+import { nanoid } from 'nanoid';
 
-export async function POST(request: Request, props: { params: Promise<{ teamId: string }> }) {
-  const params = await props.params;
-  const { email } = await request.json();
-  // Generate a simple invite token (consider using a more robust method)
-  const token = Math.random().toString(36).substr(2, 9);
-  const invite = await prisma.invite.create({
-    data: {
-      email,
-      token,
-      role: "Viewer", // default role for invited users
-      teamId: params.teamId,
-      status: "pending",
-    },
-  });
-  // Optionally: send an email invite here
-  return NextResponse.json({ invite }, { status: 201 });
+export async function POST(
+	request: Request,
+	props: { params: Promise<{ teamId: string }> }
+) {
+	const params = await props.params;
+	const { email, role = 'Viewer' } = await request.json();
+	const token = nanoid(32);
+
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	const invite = await prisma.invite.create({
+		data: {
+			email,
+			token,
+			role,
+			status: 'Pending',
+			teamId: params.teamId,
+		},
+	});
+
+	const inviteLink = `${process.env.NEXT_PUBLIC_SITE_URL}/invite/${token}`;
+
+	return NextResponse.json({ inviteLink }, { status: 201 });
 }
