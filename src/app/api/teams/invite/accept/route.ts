@@ -8,6 +8,7 @@ export async function POST(request: Request) {
 
 	const {
 		data: { user },
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
 		error,
 	} = await supabase.auth.getUser();
 
