@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 import React from 'react';
@@ -27,7 +28,7 @@ const KanbanTask: React.FC<KanbanTaskProps> = ({ task, columnId }) => {
 		isDragging,
 	} = useSortable({
 		id: task.id,
-		data: { type: 'task', columnId, ...task },
+		data: { type: 'task', ...task } as const,
 	});
 
 	const style = {

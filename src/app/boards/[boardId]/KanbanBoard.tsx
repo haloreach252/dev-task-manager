@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React, { useCallback, useState } from 'react';
@@ -139,13 +140,16 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 			});
 			if (!movedTask) return { previousColumns };
 
+			const insertedTask: Task = {
+				id: movedTask.id,
+				title: movedTask.title,
+				order: movedTask.order,
+				columnId: targetColumnId,
+			};
+
 			const updatedColumns = columnsWithoutTask.map((column) => {
 				if (column.id === targetColumnId) {
 					const tasks = [...column.tasks];
-					const insertedTask = {
-						...movedTask,
-						columnId: targetColumnId,
-					};
 					if (targetId) {
 						const targetIndex = tasks.findIndex(
 							(t) => t.id === targetId
@@ -165,7 +169,6 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 			queryClient.setQueryData(['columns', boardId], updatedColumns);
 			return { previousColumns };
 		},
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		onError: (err, variables, context: any) => {
 			queryClient.setQueryData(
 				['columns', boardId],
@@ -214,7 +217,6 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 			queryClient.setQueryData(['columns', boardId], newColumns);
 			return { previousColumns };
 		},
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		onError: (err, variables, context: any) => {
 			queryClient.setQueryData(
 				['columns', boardId],
