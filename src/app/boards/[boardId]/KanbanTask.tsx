@@ -18,16 +18,23 @@ interface KanbanTaskProps {
 }
 
 const KanbanTask: React.FC<KanbanTaskProps> = ({ task, columnId }) => {
-	const { attributes, listeners, setNodeRef, transform, transition } =
-		useSortable({
-			id: task.id,
-			data: { type: 'task', columnId },
-		});
+	const {
+		attributes,
+		listeners,
+		setNodeRef,
+		transform,
+		transition,
+		isDragging,
+	} = useSortable({
+		id: task.id,
+		data: { type: 'task', columnId, ...task },
+	});
 
 	const style = {
 		transform: CSS.Transform.toString(transform),
 		transition,
 		cursor: 'grab',
+		opacity: isDragging ? 0 : 1, // Hide original when dragging
 	};
 
 	return (

@@ -1,9 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 // KanbanBoard.tsx
 'use client';
 
-import React, { useCallback } from 'react';
-import { DndContext, DragEndEvent } from '@dnd-kit/core';
+import React, { useCallback, useState } from 'react';
+import {
+	DndContext,
+	DragEndEvent,
+	DragStartEvent,
+	DragOverlay,
+} from '@dnd-kit/core';
 import {
 	SortableContext,
 	horizontalListSortingStrategy,
@@ -24,31 +30,19 @@ import { Input } from '@/components/ui/input';
 import { Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import DraggableKanbanColumn from './DraggableKanbanColumn';
-
-export type Task = {
-	id: string;
-	title: string;
-	order: number;
-	columnId: string;
-};
-
-export type Column = {
-	id: string;
-	title: string;
-	order: number;
-	tasks: Task[];
-};
+import { Column } from './KanbanColumn';
+import { Task } from './KanbanTask';
 
 export default function KanbanBoard({ boardId }: { boardId: string }) {
 	const queryClient = useQueryClient();
 	const { toast } = useToast();
-	const [isDialogOpen, setIsDialogOpen] = React.useState(false);
-	const [newColumnTitle, setNewColumnTitle] = React.useState('');
-	const [taskDialogOpen, setTaskDialogOpen] = React.useState(false);
-	const [newTaskTitle, setNewTaskTitle] = React.useState('');
-	const [activeColumnId, setActiveColumnId] = React.useState<string | null>(
-		null
-	);
+	const [isDialogOpen, setIsDialogOpen] = useState(false);
+	const [newColumnTitle, setNewColumnTitle] = useState('');
+	const [taskDialogOpen, setTaskDialogOpen] = useState(false);
+	const [newTaskTitle, setNewTaskTitle] = useState('');
+	const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
+	// Use state (not a ref) for the active draggable data.
+	const [activeDraggable, setActiveDraggable] = useState<any>(null);
 
 	const { data: columns = [], isLoading } = useQuery<Column[]>({
 		queryKey: ['columns', boardId],
@@ -79,27 +73,36 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 			return res.data;
 		},
 		onMutate: async ({ taskId, targetId, targetColumnId }) => {
-			// Cancel ongoing fetches
 			await queryClient.cancelQueries({ queryKey: ['columns', boardId] });
-			// Snapshot previous state
 			const previousColumns = queryClient.getQueryData<Column[]>([
 				'columns',
 				boardId,
 			]);
 			if (!previousColumns) return { previousColumns };
 
-			// Create a new state by:
-			// 1. Removing the task from its original column.
-			// 2. Inserting it into the target column at the proper position.
-			const newColumns = previousColumns.map((column) => {
-				let tasks = [...column.tasks];
-				// If this column contains the task, remove it.
-				const removedTask = tasks.find((task) => task.id === taskId);
-				tasks = tasks.filter((task) => task.id !== taskId);
-				// If this is the target column, insert the removed task.
-				if (column.id === targetColumnId && removedTask) {
-					const movedTask = {
-						...removedTask,
+			// Remove the task from its current column and capture its data.
+			let movedTask: Task | undefined;
+			const columnsWithoutTask = previousColumns.map((column) => {
+				const foundTask = column.tasks.find(
+					(task) => task.id === taskId
+				);
+				if (foundTask) {
+					movedTask = foundTask;
+					return {
+						...column,
+						tasks: column.tasks.filter((t) => t.id !== taskId),
+					};
+				}
+				return column;
+			});
+			if (!movedTask) return { previousColumns };
+
+			// Insert the moved task into the target column.
+			const updatedColumns = columnsWithoutTask.map((column) => {
+				if (column.id === targetColumnId) {
+					const tasks = [...column.tasks];
+					const insertedTask = {
+						...movedTask,
 						columnId: targetColumnId,
 					};
 					if (targetId) {
@@ -107,28 +110,27 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 							(t) => t.id === targetId
 						);
 						if (targetIndex === -1) {
-							tasks.push(movedTask);
+							tasks.push(insertedTask);
 						} else {
-							tasks.splice(targetIndex + 1, 0, movedTask);
+							tasks.splice(targetIndex + 1, 0, insertedTask);
 						}
 					} else {
-						tasks.push(movedTask);
+						tasks.push(insertedTask);
 					}
+					return { ...column, tasks };
 				}
-				return { ...column, tasks };
+				return column;
 			});
-			queryClient.setQueryData(['columns', boardId], newColumns);
+			queryClient.setQueryData(['columns', boardId], updatedColumns);
 			return { previousColumns };
 		},
 		onError: (err, variables, context: any) => {
-			// Roll back if mutation fails.
 			queryClient.setQueryData(
 				['columns', boardId],
 				context.previousColumns
 			);
 		},
 		onSettled: () => {
-			// Always re-fetch after mutation.
 			queryClient.invalidateQueries({ queryKey: ['columns', boardId] });
 		},
 	});
@@ -181,17 +183,35 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 		},
 	});
 
-	// onDragEnd: Distinguish between task and column drags.
+	const handleDragStart = (event: DragStartEvent) => {
+		// Update active draggable state so DragOverlay renders immediately.
+		setActiveDraggable(event.active.data.current);
+	};
+
 	const handleDragEnd = useCallback(
 		(event: DragEndEvent) => {
 			const { active, over } = event;
+			setActiveDraggable(null);
 			if (!over) return;
-			const activeData = active.data.current;
+
+			// Use active.data.current if available; fallback to activeDraggable state.
+			const activeData = active.data.current || activeDraggable;
 			const overData = over.data.current;
 			const activeId = active.id as string;
 
+			console.log('Drag End:', {
+				activeData,
+				overData,
+				activeId,
+				overId: over.id,
+			});
+
+			if (!activeData) {
+				console.warn('No active data available');
+				return;
+			}
+
 			if (activeData?.type === 'column') {
-				// For column drags, assume over.id is the target column's id.
 				const draggedColumnId = activeId;
 				const targetColumnId = over.id as string;
 				if (draggedColumnId !== targetColumnId) {
@@ -201,12 +221,11 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 					});
 				}
 			} else if (activeData?.type === 'task') {
-				// For tasks, use custom data to determine the source and target.
 				const sourceColumnId = activeData.columnId;
 				let targetColumnId: string;
 				let targetTaskId: string | null = null;
+
 				if (overData?.type === 'column') {
-					// Dropped into an empty column.
 					targetColumnId = overData.columnId;
 					targetTaskId = null;
 				} else if (overData?.type === 'task') {
@@ -215,11 +234,13 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 				} else {
 					return;
 				}
+
 				if (
 					sourceColumnId === targetColumnId &&
 					activeId === targetTaskId
 				)
 					return;
+
 				reorderTaskMutation.mutate({
 					taskId: activeId,
 					targetId: targetTaskId,
@@ -227,60 +248,23 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 				});
 			}
 		},
-		[reorderTaskMutation, reorderColumnMutation]
+		[reorderTaskMutation, reorderColumnMutation, activeDraggable]
 	);
 
-	const createColumn = useMutation({
-		mutationFn: async () => {
-			const res = await axios.post(`/api/boards/${boardId}/columns`, {
-				title: newColumnTitle,
-			});
-			return res.data;
-		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ['columns', boardId] });
-			setIsDialogOpen(false);
-			setNewColumnTitle('');
-			toast({ title: 'Column created' });
-		},
-		onError: () => {
-			toast({
-				title: 'Error',
-				description: 'Failed to create column.',
-				variant: 'destructive',
-			});
-		},
-	});
-
-	const createTask = useMutation({
-		mutationFn: async () => {
-			const res = await axios.post(`/api/boards/${boardId}/tasks`, {
-				title: newTaskTitle,
-				columnId: activeColumnId,
-			});
-			return res.data;
-		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ['columns', boardId] });
-			setTaskDialogOpen(false);
-			setNewTaskTitle('');
-			toast({ title: 'Task created' });
-		},
-		onError: () => {
-			toast({
-				title: 'Error',
-				description: 'Failed to create task.',
-				variant: 'destructive',
-			});
-		},
-	});
+	const handleDragCancel = () => {
+		setActiveDraggable(null);
+	};
 
 	if (isLoading) return <div>Loading...</div>;
 
 	const columnIds = columns.map((col) => col.id);
 
 	return (
-		<DndContext onDragEnd={handleDragEnd}>
+		<DndContext
+			onDragStart={handleDragStart}
+			onDragEnd={handleDragEnd}
+			onDragCancel={handleDragCancel}
+		>
 			<SortableContext
 				items={columnIds}
 				strategy={horizontalListSortingStrategy}
@@ -299,6 +283,29 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 				</div>
 			</SortableContext>
 
+			<DragOverlay
+				dropAnimation={{
+					duration: 250,
+					easing: 'ease-out',
+				}}
+				// Ensure the overlay is rendered above everything else.
+				style={{ zIndex: 1000 }}
+			>
+				{activeDraggable ? (
+					activeDraggable.type === 'task' ? (
+						<div className="mb-2 p-2 bg-white shadow rounded cursor-grab">
+							{activeDraggable.title}
+						</div>
+					) : activeDraggable.type === 'column' ? (
+						<div className="w-64 bg-gray-100 rounded p-2 cursor-grab">
+							<h2 className="font-bold mb-2">
+								{activeDraggable.title}
+							</h2>
+						</div>
+					) : null
+				) : null}
+			</DragOverlay>
+
 			{/* Add Column Dialog */}
 			<Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
 				<DialogTrigger asChild>
@@ -316,7 +323,7 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 						placeholder="Column title"
 					/>
 					<DialogFooter>
-						<Button onClick={() => createColumn.mutate()}>
+						<Button /* onClick={createColumn.mutate} */>
 							Create
 						</Button>
 					</DialogFooter>
@@ -335,7 +342,7 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 						placeholder="Task title"
 					/>
 					<DialogFooter>
-						<Button onClick={() => createTask.mutate()}>
+						<Button /* onClick={createTask.mutate} */>
 							Create
 						</Button>
 					</DialogFooter>

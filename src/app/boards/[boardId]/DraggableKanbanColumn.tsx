@@ -4,7 +4,8 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import KanbanColumn, { Column } from './KanbanColumn';
+import KanbanColumn from './KanbanColumn';
+import { Column } from './KanbanColumn';
 
 interface DraggableKanbanColumnProps {
 	column: Column;
@@ -18,7 +19,7 @@ const DraggableKanbanColumn: React.FC<DraggableKanbanColumnProps> = ({
 	const { attributes, listeners, setNodeRef, transform, transition } =
 		useSortable({
 			id: column.id,
-			data: { type: 'column', columnId: column.id },
+			data: { type: 'column', columnId: column.id, ...column },
 		});
 
 	const style = {
@@ -27,7 +28,16 @@ const DraggableKanbanColumn: React.FC<DraggableKanbanColumnProps> = ({
 	};
 
 	return (
-		<div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+		<div
+			ref={setNodeRef}
+			style={style}
+			className="w-64 bg-gray-100 rounded p-2"
+		>
+			{/* Only the header gets the drag listeners */}
+			<div className="cursor-grab" {...attributes} {...listeners}>
+				<h2 className="font-bold mb-2">{column.title}</h2>
+			</div>
+			{/* Render the tasks and Add Task button without drag listeners */}
 			<KanbanColumn column={column} onAddTask={onAddTask} />
 		</div>
 	);
