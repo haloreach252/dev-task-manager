@@ -8,9 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 export default async function AuthPage({
 	searchParams,
 }: {
-	searchParams: { [key: string]: string | undefined };
+	searchParams: Promise<{ [key: string]: string | undefined }>;
 }) {
-	const redirectPath = (await searchParams.redirect) || '/';
+	const resolvedSearchParams = await searchParams;
+	const redirectPath = resolvedSearchParams.redirect || '/';
 
 	return (
 		<div className="min-h-screen flex justify-center items-center bg-gray-100 p-4">
