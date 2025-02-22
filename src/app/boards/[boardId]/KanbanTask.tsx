@@ -1,9 +1,9 @@
-// KanbanTask.tsx
 'use client';
 
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export type Task = {
 	id: string;
@@ -34,18 +34,21 @@ const KanbanTask: React.FC<KanbanTaskProps> = ({ task, columnId }) => {
 		transform: CSS.Transform.toString(transform),
 		transition,
 		cursor: 'grab',
-		opacity: isDragging ? 0 : 1, // Hide original when dragging
+		opacity: isDragging ? 0 : 1,
 	};
 
 	return (
-		<div
-			ref={setNodeRef}
-			style={style}
-			{...attributes}
-			{...listeners}
-			className="mb-2 p-2 bg-white shadow rounded"
-		>
-			{task.title}
+		<div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+			<Card className="mb-2">
+				<CardHeader>
+					<CardTitle className="text-sm font-medium">
+						{task.title}
+					</CardTitle>
+				</CardHeader>
+				<CardContent className="text-xs text-muted-foreground">
+					{/* Additional details can go here */}
+				</CardContent>
+			</Card>
 		</div>
 	);
 };

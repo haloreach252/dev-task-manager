@@ -1,4 +1,3 @@
-// KanbanColumn.tsx
 'use client';
 
 import React from 'react';
@@ -23,12 +22,12 @@ interface KanbanColumnProps {
 }
 
 const KanbanColumn: React.FC<KanbanColumnProps> = ({ column, onAddTask }) => {
-	// Sort tasks based on order (ascending).
+	// Sort tasks in ascending order
 	const sortedTasks = [...column.tasks].sort((a, b) => a.order - b.order);
 	const taskIds = sortedTasks.map((task) => task.id);
 
 	return (
-		<>
+		<div className="space-y-4">
 			<SortableContext
 				items={taskIds}
 				strategy={verticalListSortingStrategy}
@@ -41,8 +40,10 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ column, onAddTask }) => {
 					/>
 				))}
 			</SortableContext>
-			<Button onClick={() => onAddTask(column.id)}>Add Task</Button>
-		</>
+			<Button variant="outline" onClick={() => onAddTask(column.id)}>
+				Add Task
+			</Button>
+		</div>
 	);
 };
 

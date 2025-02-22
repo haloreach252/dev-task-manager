@@ -1,4 +1,3 @@
-// DraggableKanbanColumn.tsx
 'use client';
 
 import React from 'react';
@@ -31,13 +30,13 @@ const DraggableKanbanColumn: React.FC<DraggableKanbanColumnProps> = ({
 		<div
 			ref={setNodeRef}
 			style={style}
-			className="w-64 bg-gray-100 rounded p-2"
+			className="w-80 bg-gray-50 rounded shadow p-4"
 		>
-			{/* Only the header gets the drag listeners */}
+			{/* Draggable header only */}
 			<div className="cursor-grab" {...attributes} {...listeners}>
-				<h2 className="font-bold mb-2">{column.title}</h2>
+				<h2 className="text-xl font-bold">{column.title}</h2>
 			</div>
-			{/* Render the tasks and Add Task button without drag listeners */}
+			{/* Column content without drag listeners */}
 			<KanbanColumn column={column} onAddTask={onAddTask} />
 		</div>
 	);

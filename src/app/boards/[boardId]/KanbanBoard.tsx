@@ -308,93 +308,92 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 	const columnIds = columns.map((col) => col.id);
 
 	return (
-		<DndContext
-			onDragStart={handleDragStart}
-			onDragEnd={handleDragEnd}
-			onDragCancel={handleDragCancel}
-		>
-			<SortableContext
-				items={columnIds}
-				strategy={horizontalListSortingStrategy}
+		<div className="min-h-screen bg-gray-100 p-6">
+			<DndContext
+				onDragStart={handleDragStart}
+				onDragEnd={handleDragEnd}
+				onDragCancel={handleDragCancel}
 			>
-				<div className="flex overflow-x-auto space-x-4 p-4">
-					{columns.map((column) => (
-						<DraggableKanbanColumn
-							key={column.id}
-							column={column}
-							onAddTask={(columnId) => {
-								setActiveColumnId(columnId);
-								setTaskDialogOpen(true);
-							}}
-						/>
-					))}
-				</div>
-			</SortableContext>
+				<SortableContext
+					items={columnIds}
+					strategy={horizontalListSortingStrategy}
+				>
+					<div className="flex gap-4 overflow-x-auto">
+						{columns.map((column) => (
+							<DraggableKanbanColumn
+								key={column.id}
+								column={column}
+								onAddTask={(columnId) => {
+									setActiveColumnId(columnId);
+									setTaskDialogOpen(true);
+								}}
+							/>
+						))}
+					</div>
+				</SortableContext>
 
-			<DragOverlay
-				dropAnimation={{
-					duration: 250,
-					easing: 'ease-out',
-				}}
-				style={{ zIndex: 1000 }}
-			>
-				{activeDraggable ? (
-					activeDraggable.type === 'task' ? (
-						<div className="mb-2 p-2 bg-white shadow rounded cursor-grab">
-							{activeDraggable.title}
-						</div>
-					) : activeDraggable.type === 'column' ? (
-						<div className="w-64 bg-gray-100 rounded p-2 cursor-grab">
-							<h2 className="font-bold mb-2">
+				<DragOverlay
+					dropAnimation={{ duration: 250, easing: 'ease-out' }}
+					style={{ zIndex: 1000 }}
+				>
+					{activeDraggable ? (
+						activeDraggable.type === 'task' ? (
+							<div className="mb-2 p-2 bg-white shadow rounded cursor-grab">
 								{activeDraggable.title}
-							</h2>
-						</div>
-					) : null
-				) : null}
-			</DragOverlay>
+							</div>
+						) : activeDraggable.type === 'column' ? (
+							<div className="w-80 bg-gray-50 rounded shadow p-4 cursor-grab">
+								<h2 className="text-xl font-bold">
+									{activeDraggable.title}
+								</h2>
+							</div>
+						) : null
+					) : null}
+				</DragOverlay>
 
-			{/* Add Column Dialog */}
-			<Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-				<DialogTrigger asChild>
-					<Button>
-						<Plus /> Add Column
-					</Button>
-				</DialogTrigger>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>New Column</DialogTitle>
-					</DialogHeader>
-					<Input
-						value={newColumnTitle}
-						onChange={(e) => setNewColumnTitle(e.target.value)}
-						placeholder="Column title"
-					/>
-					<DialogFooter>
-						<Button onClick={() => createColumn.mutate()}>
-							Create
+				{/* Add Column Dialog */}
+				<Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+					<DialogTrigger asChild>
+						<Button>
+							<Plus /> Add Column
 						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+					</DialogTrigger>
+					<DialogContent>
+						<DialogHeader>
+							<DialogTitle>New Column</DialogTitle>
+						</DialogHeader>
+						<Input
+							value={newColumnTitle}
+							onChange={(e) => setNewColumnTitle(e.target.value)}
+							placeholder="Column title"
+						/>
+						<DialogFooter>
+							<Button onClick={() => createColumn.mutate()}>
+								Create
+							</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
 
-			{/* Add Task Dialog */}
-			<Dialog open={taskDialogOpen} onOpenChange={setTaskDialogOpen}>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>New Task</DialogTitle>
-					</DialogHeader>
-					<Input
-						value={newTaskTitle}
-						onChange={(e) => setNewTaskTitle(e.target.value)}
-						placeholder="Task title"
-					/>
-					<DialogFooter>
-						<Button onClick={() => createTask.mutate()}>
-							Create
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
-		</DndContext>
+				{/* Add Task Dialog */}
+				<Dialog open={taskDialogOpen} onOpenChange={setTaskDialogOpen}>
+					<DialogContent>
+						<DialogHeader>
+							<DialogTitle>New Task</DialogTitle>
+						</DialogHeader>
+						<Input
+							value={newTaskTitle}
+							onChange={(e) => setNewTaskTitle(e.target.value)}
+							placeholder="Task title"
+						/>
+						<DialogFooter>
+							<Button onClick={() => createTask.mutate()}>
+								Create
+							</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
+			</DndContext>
+		</div>
 	);
 }
