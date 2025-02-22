@@ -3,10 +3,10 @@ import prisma from '@/lib/prisma';
 
 export async function POST(
 	req: Request,
-	{ params }: { params: { boardId: string } }
+	props: { params: Promise<{ boardId: string }> }
 ) {
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	const { boardId } = await params;
+	const { boardId } = await props.params;
 	const { title, columnId } = await req.json();
 
 	try {

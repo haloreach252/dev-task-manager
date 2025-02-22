@@ -5,9 +5,9 @@ import prisma from '@/lib/prisma';
 
 export async function GET(
 	req: Request,
-	{ params }: { params: { projectId: string } }
+	props: { params: Promise<{ projectId: string }> }
 ) {
-	const { projectId } = await params;
+	const { projectId } = await props.params;
 
 	try {
 		const boards = await prisma.board.findMany({
@@ -27,9 +27,9 @@ export async function GET(
 
 export async function POST(
 	req: Request,
-	{ params }: { params: { projectId: string } }
+	props: { params: Promise<{ projectId: string }> }
 ) {
-	const { projectId } = await params;
+	const { projectId } = await props.params;
 	const { name, visibility } = await req.json();
 
 	try {

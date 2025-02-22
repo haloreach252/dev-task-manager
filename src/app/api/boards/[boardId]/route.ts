@@ -3,9 +3,9 @@ import prisma from '@/lib/prisma';
 
 export async function GET(
 	req: Request,
-	{ params }: { params: { boardId: string } }
+	props: { params: Promise<{ boardId: string }> }
 ) {
-	const { boardId } = await params;
+	const { boardId } = await props.params;
 
 	try {
 		const board = await prisma.board.findUnique({
@@ -37,9 +37,9 @@ export async function GET(
 
 export async function PUT(
 	req: Request,
-	{ params }: { params: { boardId: string } }
+	props: { params: Promise<{ boardId: string }> }
 ) {
-	const { boardId } = await params;
+	const { boardId } = await props.params;
 	const { name, visibility } = await req.json();
 
 	try {
@@ -60,9 +60,9 @@ export async function PUT(
 
 export async function DELETE(
 	req: Request,
-	{ params }: { params: { boardId: string } }
+	props: { params: Promise<{ boardId: string }> }
 ) {
-	const { boardId } = await params;
+	const { boardId } = await props.params;
 
 	try {
 		// Delete related columns and tasks before deleting the board

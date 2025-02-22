@@ -3,9 +3,9 @@ import prisma from '@/lib/prisma';
 
 export async function PUT(
 	req: Request,
-	{ params }: { params: { boardId: string; taskId: string } }
+	props: { params: Promise<{ boardId: string; taskId: string }> }
 ) {
-	const { taskId } = await params;
+	const { taskId } = await props.params;
 	const { targetId, targetColumnId } = await req.json();
 
 	try {
