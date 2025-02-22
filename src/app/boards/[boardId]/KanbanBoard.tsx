@@ -165,6 +165,7 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 			queryClient.setQueryData(['columns', boardId], updatedColumns);
 			return { previousColumns };
 		},
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		onError: (err, variables, context: any) => {
 			queryClient.setQueryData(
 				['columns', boardId],
@@ -213,6 +214,7 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 			queryClient.setQueryData(['columns', boardId], newColumns);
 			return { previousColumns };
 		},
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		onError: (err, variables, context: any) => {
 			queryClient.setQueryData(
 				['columns', boardId],
