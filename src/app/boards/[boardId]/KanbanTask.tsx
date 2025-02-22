@@ -39,14 +39,14 @@ const KanbanTask: React.FC<KanbanTaskProps> = ({ task, columnId }) => {
 
 	return (
 		<div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-			<Card className="mb-2">
-				<CardHeader>
+			<Card className="shadow-sm">
+				<CardHeader className="pb-2">
 					<CardTitle className="text-sm font-medium">
 						{task.title}
 					</CardTitle>
 				</CardHeader>
-				<CardContent className="text-xs text-muted-foreground">
-					{/* Additional details can go here */}
+				<CardContent className="pt-0 text-xs text-muted-foreground">
+					{/* Additional details (description, labels, cover, etc.) can go here. */}
 				</CardContent>
 			</Card>
 		</div>

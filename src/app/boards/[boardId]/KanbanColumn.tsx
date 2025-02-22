@@ -5,9 +5,9 @@ import {
 	SortableContext,
 	verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
+import KanbanTask, { Task } from './KanbanTask';
 import { Button } from '@/components/ui/button';
-import KanbanTask from './KanbanTask';
-import { Task } from './KanbanTask';
+import { Plus } from 'lucide-react';
 
 export type Column = {
 	id: string;
@@ -22,12 +22,11 @@ interface KanbanColumnProps {
 }
 
 const KanbanColumn: React.FC<KanbanColumnProps> = ({ column, onAddTask }) => {
-	// Sort tasks in ascending order
 	const sortedTasks = [...column.tasks].sort((a, b) => a.order - b.order);
 	const taskIds = sortedTasks.map((task) => task.id);
 
 	return (
-		<div className="space-y-4">
+		<div className="flex flex-col space-y-2">
 			<SortableContext
 				items={taskIds}
 				strategy={verticalListSortingStrategy}
@@ -40,7 +39,14 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ column, onAddTask }) => {
 					/>
 				))}
 			</SortableContext>
-			<Button variant="outline" onClick={() => onAddTask(column.id)}>
+
+			{/* "Add Task" button - transparent until hover, plus icon */}
+			<Button
+				variant="ghost"
+				className="justify-start px-1 text-gray-500 hover:bg-gray-200"
+				onClick={() => onAddTask(column.id)}
+			>
+				<Plus className="mr-1 w-4 h-4" />
 				Add Task
 			</Button>
 		</div>

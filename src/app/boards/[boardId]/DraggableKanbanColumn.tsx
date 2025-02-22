@@ -3,8 +3,7 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import KanbanColumn from './KanbanColumn';
-import { Column } from './KanbanColumn';
+import KanbanColumn, { Column } from './KanbanColumn';
 
 interface DraggableKanbanColumnProps {
 	column: Column;
@@ -30,13 +29,18 @@ const DraggableKanbanColumn: React.FC<DraggableKanbanColumnProps> = ({
 		<div
 			ref={setNodeRef}
 			style={style}
-			className="w-80 bg-gray-50 rounded shadow p-4"
+			className="w-80 bg-gray-50 rounded shadow p-4 flex flex-col"
 		>
-			{/* Draggable header only */}
-			<div className="cursor-grab" {...attributes} {...listeners}>
+			{/* Column Header: Draggable handle */}
+			<div
+				className="cursor-grab pb-2 mb-2 border-b border-gray-300"
+				{...attributes}
+				{...listeners}
+			>
 				<h2 className="text-xl font-bold">{column.title}</h2>
 			</div>
-			{/* Column content without drag listeners */}
+
+			{/* Tasks + "Add Task" button */}
 			<KanbanColumn column={column} onAddTask={onAddTask} />
 		</div>
 	);

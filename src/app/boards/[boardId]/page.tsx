@@ -1,3 +1,4 @@
+// page.tsx
 'use client';
 
 import { useParams } from 'next/navigation';
@@ -26,6 +27,7 @@ export default function BoardPage() {
 				const res = await axios.get(`/api/boards/${boardId}`);
 				setBoard(res.data);
 			} catch (error) {
+				console.error(error);
 				toast({
 					title: 'Error',
 					description: 'Failed to fetch board',
@@ -43,9 +45,16 @@ export default function BoardPage() {
 	if (!board) return <p className="p-6">Board not found.</p>;
 
 	return (
-		<div className="p-6">
-			<h1 className="text-3xl font-bold mb-4">{board.name}</h1>
-			<KanbanBoard boardId={boardId as string} />
+		<div className="min-h-screen flex flex-col bg-gray-100">
+			{/* Top Bar */}
+			<header className="bg-white shadow-sm px-6 py-4">
+				<h1 className="text-3xl font-bold">{board.name}</h1>
+			</header>
+
+			{/* Board Content */}
+			<main className="p-6 flex-1 overflow-auto">
+				<KanbanBoard boardId={boardId as string} />
+			</main>
 		</div>
 	);
 }

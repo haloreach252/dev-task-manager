@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-// KanbanBoard.tsx
 'use client';
 
 import React, { useCallback, useState } from 'react';
@@ -41,7 +38,6 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 	const [taskDialogOpen, setTaskDialogOpen] = useState(false);
 	const [newTaskTitle, setNewTaskTitle] = useState('');
 	const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
-	// Using state to store active draggable data for DragOverlay preview.
 	const [activeDraggable, setActiveDraggable] = useState<any>(null);
 
 	const { data: columns = [], isLoading } = useQuery<Column[]>({
@@ -52,7 +48,7 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 		},
 	});
 
-	// Mutation to create a new column.
+	// Create Column Mutation
 	const createColumn = useMutation({
 		mutationFn: async () => {
 			const res = await axios.post(`/api/boards/${boardId}/columns`, {
@@ -75,7 +71,7 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 		},
 	});
 
-	// Mutation to create a new task.
+	// Create Task Mutation
 	const createTask = useMutation({
 		mutationFn: async () => {
 			const res = await axios.post(`/api/boards/${boardId}/tasks`, {
@@ -99,7 +95,7 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 		},
 	});
 
-	// Optimistic update for task reordering/moving between columns.
+	// Task Reorder Mutation (Optimistic)
 	const reorderTaskMutation = useMutation({
 		mutationFn: async ({
 			taskId,
@@ -127,7 +123,6 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 			]);
 			if (!previousColumns) return { previousColumns };
 
-			// Remove the task from its current column and capture its data.
 			let movedTask: Task | undefined;
 			const columnsWithoutTask = previousColumns.map((column) => {
 				const foundTask = column.tasks.find(
@@ -144,7 +139,6 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 			});
 			if (!movedTask) return { previousColumns };
 
-			// Insert the moved task into the target column.
 			const updatedColumns = columnsWithoutTask.map((column) => {
 				if (column.id === targetColumnId) {
 					const tasks = [...column.tasks];
@@ -182,7 +176,7 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 		},
 	});
 
-	// Optimistic update for column reordering.
+	// Column Reorder Mutation (Optimistic)
 	const reorderColumnMutation = useMutation({
 		mutationFn: async ({
 			columnId,
@@ -231,7 +225,6 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 	});
 
 	const handleDragStart = (event: DragStartEvent) => {
-		// Store the full data of the active draggable so DragOverlay renders immediately.
 		setActiveDraggable(event.active.data.current);
 	};
 
@@ -241,22 +234,11 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 			setActiveDraggable(null);
 			if (!over) return;
 
-			// Use active.data.current if available; fallback to our stored activeDraggable.
 			const activeData = active.data.current || activeDraggable;
 			const overData = over.data.current;
 			const activeId = active.id as string;
 
-			console.log('Drag End:', {
-				activeData,
-				overData,
-				activeId,
-				overId: over.id,
-			});
-
-			if (!activeData) {
-				console.warn('No active data available');
-				return;
-			}
+			if (!activeData) return;
 
 			if (activeData?.type === 'column') {
 				const draggedColumnId = activeId;
@@ -273,7 +255,6 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 				let targetTaskId: string | null = null;
 
 				if (overData?.type === 'column') {
-					// Dropped into an empty column.
 					targetColumnId = overData.columnId;
 					targetTaskId = null;
 				} else if (overData?.type === 'task') {
@@ -303,97 +284,114 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 		setActiveDraggable(null);
 	};
 
-	if (isLoading) return <div>Loading...</div>;
+	if (isLoading) return <div className="p-6">Loading...</div>;
 
 	const columnIds = columns.map((col) => col.id);
 
 	return (
-		<div className="min-h-screen bg-gray-100 p-6">
-			<DndContext
-				onDragStart={handleDragStart}
-				onDragEnd={handleDragEnd}
-				onDragCancel={handleDragCancel}
+		<DndContext
+			onDragStart={handleDragStart}
+			onDragEnd={handleDragEnd}
+			onDragCancel={handleDragCancel}
+		>
+			<SortableContext
+				items={columnIds}
+				strategy={horizontalListSortingStrategy}
 			>
-				<SortableContext
-					items={columnIds}
-					strategy={horizontalListSortingStrategy}
-				>
-					<div className="flex gap-4 overflow-x-auto">
-						{columns.map((column) => (
-							<DraggableKanbanColumn
-								key={column.id}
-								column={column}
-								onAddTask={(columnId) => {
-									setActiveColumnId(columnId);
-									setTaskDialogOpen(true);
-								}}
+				<div className="flex gap-4">
+					{columns.map((column) => (
+						<DraggableKanbanColumn
+							key={column.id}
+							column={column}
+							onAddTask={(columnId) => {
+								setActiveColumnId(columnId);
+								setTaskDialogOpen(true);
+							}}
+						/>
+					))}
+
+					{/* Add Column Button (to the far right) */}
+					<Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+						<DialogTrigger asChild>
+							<Button
+								variant="ghost"
+								className="h-fit self-start mt-1"
+							>
+								<Plus className="mr-1 w-4 h-4" />
+								Add Column
+							</Button>
+						</DialogTrigger>
+						<DialogContent>
+							<DialogHeader>
+								<DialogTitle>New Column</DialogTitle>
+							</DialogHeader>
+							<Input
+								value={newColumnTitle}
+								onChange={(e) =>
+									setNewColumnTitle(e.target.value)
+								}
+								placeholder="Column title"
 							/>
-						))}
-					</div>
-				</SortableContext>
+							<DialogFooter>
+								<Button onClick={() => createColumn.mutate()}>
+									Create
+								</Button>
+							</DialogFooter>
+						</DialogContent>
+					</Dialog>
+				</div>
+			</SortableContext>
 
-				<DragOverlay
-					dropAnimation={{ duration: 250, easing: 'ease-out' }}
-					style={{ zIndex: 1000 }}
-				>
-					{activeDraggable ? (
-						activeDraggable.type === 'task' ? (
-							<div className="mb-2 p-2 bg-white shadow rounded cursor-grab">
+			{/* Drag Overlay */}
+			<DragOverlay
+				dropAnimation={{ duration: 250, easing: 'ease-out' }}
+				style={{ zIndex: 1000 }}
+			>
+				{activeDraggable ? (
+					activeDraggable.type === 'task' ? (
+						// DragOverlay Card styling
+						<div className="w-64">
+							<div className="cursor-grab">
+								<div className="shadow-sm rounded bg-white">
+									<div className="pb-2 px-3 pt-3 border-b border-gray-200">
+										<h3 className="text-sm font-medium">
+											{activeDraggable.title}
+										</h3>
+									</div>
+									<div className="pt-2 px-3 pb-3 text-xs text-muted-foreground">
+										{/* Additional fields if you have them, e.g. activeDraggable.description */}
+									</div>
+								</div>
+							</div>
+						</div>
+					) : activeDraggable.type === 'column' ? (
+						<div className="w-80 bg-gray-50 rounded shadow p-4 cursor-grab">
+							<h2 className="pb-2 mb-2 border-b border-gray-300 text-xl font-bold">
 								{activeDraggable.title}
-							</div>
-						) : activeDraggable.type === 'column' ? (
-							<div className="w-80 bg-gray-50 rounded shadow p-4 cursor-grab">
-								<h2 className="text-xl font-bold">
-									{activeDraggable.title}
-								</h2>
-							</div>
-						) : null
-					) : null}
-				</DragOverlay>
+							</h2>
+						</div>
+					) : null
+				) : null}
+			</DragOverlay>
 
-				{/* Add Column Dialog */}
-				<Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-					<DialogTrigger asChild>
-						<Button>
-							<Plus /> Add Column
+			{/* Add Task Dialog */}
+			<Dialog open={taskDialogOpen} onOpenChange={setTaskDialogOpen}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>New Task</DialogTitle>
+					</DialogHeader>
+					<Input
+						value={newTaskTitle}
+						onChange={(e) => setNewTaskTitle(e.target.value)}
+						placeholder="Task title"
+					/>
+					<DialogFooter>
+						<Button onClick={() => createTask.mutate()}>
+							Create
 						</Button>
-					</DialogTrigger>
-					<DialogContent>
-						<DialogHeader>
-							<DialogTitle>New Column</DialogTitle>
-						</DialogHeader>
-						<Input
-							value={newColumnTitle}
-							onChange={(e) => setNewColumnTitle(e.target.value)}
-							placeholder="Column title"
-						/>
-						<DialogFooter>
-							<Button onClick={() => createColumn.mutate()}>
-								Create
-							</Button>
-						</DialogFooter>
-					</DialogContent>
-				</Dialog>
-
-				{/* Add Task Dialog */}
-				<Dialog open={taskDialogOpen} onOpenChange={setTaskDialogOpen}>
-					<DialogContent>
-						<DialogHeader>
-							<DialogTitle>New Task</DialogTitle>
-						</DialogHeader>
-						<Input
-							value={newTaskTitle}
-							onChange={(e) => setNewTaskTitle(e.target.value)}
-							placeholder="Task title"
-						/>
-						<DialogFooter>
-							<Button onClick={() => createTask.mutate()}>
-								Create
-							</Button>
-						</DialogFooter>
-					</DialogContent>
-				</Dialog>
-			</DndContext>
-		</div>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+		</DndContext>
 	);
 }
