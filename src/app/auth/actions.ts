@@ -55,15 +55,20 @@ export async function loginWithOAuth(
 	redirectPath: string
 ) {
 	const supabase = await createClient();
+	const redirectTo = `${
+		process.env.NEXT_PUBLIC_SITE_URL
+	}/api/auth/callback?redirect=${encodeURIComponent(redirectPath)}`;
 
 	const { data, error } = await supabase.auth.signInWithOAuth({
 		provider,
 		options: {
-			redirectTo: `${
-				process.env.NEXT_PUBLIC_SITE_URL
-			}/api/auth/callback?redirect=${encodeURIComponent(redirectPath)}`,
+			redirectTo: redirectTo,
 		},
 	});
+
+	console.log(
+		`Auth test\nRedirect to: ${redirectTo}\nData raw: ${data}\nData URL: ${data?.url}`
+	);
 
 	if (error) {
 		console.log('OAuth login error:', error);
