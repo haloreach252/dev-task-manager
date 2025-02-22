@@ -41,7 +41,7 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 	const [taskDialogOpen, setTaskDialogOpen] = useState(false);
 	const [newTaskTitle, setNewTaskTitle] = useState('');
 	const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
-	// Use state (not a ref) for the active draggable data.
+	// Using state to store active draggable data for DragOverlay preview.
 	const [activeDraggable, setActiveDraggable] = useState<any>(null);
 
 	const { data: columns = [], isLoading } = useQuery<Column[]>({
@@ -49,6 +49,53 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 		queryFn: async () => {
 			const res = await axios.get(`/api/boards/${boardId}/columns`);
 			return res.data;
+		},
+	});
+
+	// Mutation to create a new column.
+	const createColumn = useMutation({
+		mutationFn: async () => {
+			const res = await axios.post(`/api/boards/${boardId}/columns`, {
+				title: newColumnTitle,
+			});
+			return res.data;
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ['columns', boardId] });
+			setIsDialogOpen(false);
+			setNewColumnTitle('');
+			toast({ title: 'Column created' });
+		},
+		onError: () => {
+			toast({
+				title: 'Error',
+				description: 'Failed to create column.',
+				variant: 'destructive',
+			});
+		},
+	});
+
+	// Mutation to create a new task.
+	const createTask = useMutation({
+		mutationFn: async () => {
+			const res = await axios.post(`/api/boards/${boardId}/tasks`, {
+				title: newTaskTitle,
+				columnId: activeColumnId,
+			});
+			return res.data;
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ['columns', boardId] });
+			setTaskDialogOpen(false);
+			setNewTaskTitle('');
+			toast({ title: 'Task created' });
+		},
+		onError: () => {
+			toast({
+				title: 'Error',
+				description: 'Failed to create task.',
+				variant: 'destructive',
+			});
 		},
 	});
 
@@ -184,7 +231,7 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 	});
 
 	const handleDragStart = (event: DragStartEvent) => {
-		// Update active draggable state so DragOverlay renders immediately.
+		// Store the full data of the active draggable so DragOverlay renders immediately.
 		setActiveDraggable(event.active.data.current);
 	};
 
@@ -194,7 +241,7 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 			setActiveDraggable(null);
 			if (!over) return;
 
-			// Use active.data.current if available; fallback to activeDraggable state.
+			// Use active.data.current if available; fallback to our stored activeDraggable.
 			const activeData = active.data.current || activeDraggable;
 			const overData = over.data.current;
 			const activeId = active.id as string;
@@ -226,6 +273,7 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 				let targetTaskId: string | null = null;
 
 				if (overData?.type === 'column') {
+					// Dropped into an empty column.
 					targetColumnId = overData.columnId;
 					targetTaskId = null;
 				} else if (overData?.type === 'task') {
@@ -288,7 +336,6 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 					duration: 250,
 					easing: 'ease-out',
 				}}
-				// Ensure the overlay is rendered above everything else.
 				style={{ zIndex: 1000 }}
 			>
 				{activeDraggable ? (
@@ -323,7 +370,7 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 						placeholder="Column title"
 					/>
 					<DialogFooter>
-						<Button /* onClick={createColumn.mutate} */>
+						<Button onClick={() => createColumn.mutate()}>
 							Create
 						</Button>
 					</DialogFooter>
@@ -342,7 +389,7 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 						placeholder="Task title"
 					/>
 					<DialogFooter>
-						<Button /* onClick={createTask.mutate} */>
+						<Button onClick={() => createTask.mutate()}>
 							Create
 						</Button>
 					</DialogFooter>
