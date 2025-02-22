@@ -5,23 +5,27 @@ import {
 	SortableContext,
 	verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import KanbanTask, { Task } from './KanbanTask';
+import KanbanTask from './KanbanTask';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
+import { type Column as PColumn } from '@prisma/client';
+import { type TaskDetails as Task } from './TaskDetailsDialog';
 
-export type Column = {
-	id: string;
-	title: string;
-	order: number;
+export type Column = PColumn & {
 	tasks: Task[];
 };
 
 interface KanbanColumnProps {
 	column: Column;
 	onAddTask: (columnId: string) => void;
+	onOpenTask: (task: Task) => void;
 }
 
-const KanbanColumn: React.FC<KanbanColumnProps> = ({ column, onAddTask }) => {
+const KanbanColumn: React.FC<KanbanColumnProps> = ({
+	column,
+	onAddTask,
+	onOpenTask,
+}) => {
 	const sortedTasks = [...column.tasks].sort((a, b) => a.order - b.order);
 	const taskIds = sortedTasks.map((task) => task.id);
 
@@ -36,6 +40,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ column, onAddTask }) => {
 						key={task.id}
 						task={task}
 						columnId={column.id}
+						onOpenDetails={onOpenTask}
 					/>
 				))}
 			</SortableContext>

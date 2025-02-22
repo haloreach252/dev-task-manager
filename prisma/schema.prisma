@@ -168,6 +168,22 @@ model Task {
   comments      Comment[]
   histories     TaskHistory[]
   attachments   FileAttachment[]
+
+  checklistItems ChecklistItem[]
+}
+
+model ChecklistItem {
+  id String @id @default(uuid())
+  text String
+  completed Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Each checklist item belongs to a task
+  task Task @relation(fields: [taskId], references: [id])
+  taskId String
+
+  @@index([taskId])
 }
 
 model TaskLabel {

@@ -1,4 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+// KanbanBoard.tsx
 'use client';
 
 import React, { useCallback, useState } from 'react';
@@ -29,17 +31,21 @@ import { Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import DraggableKanbanColumn from './DraggableKanbanColumn';
 import { Column } from './KanbanColumn';
-import { Task } from './KanbanTask';
+import TaskDetailsDialog, { TaskDetails } from './TaskDetailsDialog';
+
+// Extend the Prisma Task type to include checklist items
+export type Task = TaskDetails; // TaskDetails = Task & { checklistItems: ChecklistItem[] }
 
 export default function KanbanBoard({ boardId }: { boardId: string }) {
 	const queryClient = useQueryClient();
 	const { toast } = useToast();
-	const [isDialogOpen, setIsDialogOpen] = useState(false);
+	const [isColumnDialogOpen, setIsColumnDialogOpen] = useState(false);
 	const [newColumnTitle, setNewColumnTitle] = useState('');
-	const [taskDialogOpen, setTaskDialogOpen] = useState(false);
+	const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
 	const [newTaskTitle, setNewTaskTitle] = useState('');
 	const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
 	const [activeDraggable, setActiveDraggable] = useState<any>(null);
+	const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
 	const { data: columns = [], isLoading } = useQuery<Column[]>({
 		queryKey: ['columns', boardId],
@@ -59,7 +65,7 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['columns', boardId] });
-			setIsDialogOpen(false);
+			setIsColumnDialogOpen(false);
 			setNewColumnTitle('');
 			toast({ title: 'Column created' });
 		},
@@ -83,7 +89,7 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['columns', boardId] });
-			setTaskDialogOpen(false);
+			setIsTaskDialogOpen(false);
 			setNewTaskTitle('');
 			toast({ title: 'Task created' });
 		},
@@ -141,9 +147,7 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 			if (!movedTask) return { previousColumns };
 
 			const insertedTask: Task = {
-				id: movedTask.id,
-				title: movedTask.title,
-				order: movedTask.order,
+				...movedTask,
 				columnId: targetColumnId,
 			};
 
@@ -237,11 +241,9 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 			const { active, over } = event;
 			setActiveDraggable(null);
 			if (!over) return;
-
 			const activeData = active.data.current || activeDraggable;
 			const overData = over.data.current;
 			const activeId = active.id as string;
-
 			if (!activeData) return;
 
 			if (activeData?.type === 'column') {
@@ -257,7 +259,6 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 				const sourceColumnId = activeData.columnId;
 				let targetColumnId: string;
 				let targetTaskId: string | null = null;
-
 				if (overData?.type === 'column') {
 					targetColumnId = overData.columnId;
 					targetTaskId = null;
@@ -267,13 +268,11 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 				} else {
 					return;
 				}
-
 				if (
 					sourceColumnId === targetColumnId &&
 					activeId === targetTaskId
 				)
 					return;
-
 				reorderTaskMutation.mutate({
 					taskId: activeId,
 					targetId: targetTaskId,
@@ -281,11 +280,36 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 				});
 			}
 		},
-		[reorderTaskMutation, reorderColumnMutation, activeDraggable]
+		[activeDraggable, reorderColumnMutation, reorderTaskMutation]
 	);
 
 	const handleDragCancel = () => {
 		setActiveDraggable(null);
+	};
+
+	// Handler for opening task details when a task is clicked.
+	const handleOpenTask = (task: Task) => {
+		setSelectedTask(task);
+	};
+
+	// Handler for saving task details.
+	const handleSaveTaskDetails = (updatedTask: Task) => {
+		axios
+			.put(`/api/boards/${boardId}/tasks/${updatedTask.id}`, updatedTask)
+			.then(() => {
+				queryClient.invalidateQueries({
+					queryKey: ['columns', boardId],
+				});
+				setSelectedTask(null);
+				toast({ title: 'Task updated' });
+			})
+			.catch(() => {
+				toast({
+					title: 'Error',
+					description: 'Failed to update task details',
+					variant: 'destructive',
+				});
+			});
 	};
 
 	if (isLoading) return <div className="p-6">Loading...</div>;
@@ -293,93 +317,88 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 	const columnIds = columns.map((col) => col.id);
 
 	return (
-		<DndContext
-			onDragStart={handleDragStart}
-			onDragEnd={handleDragEnd}
-			onDragCancel={handleDragCancel}
-		>
-			<SortableContext
-				items={columnIds}
-				strategy={horizontalListSortingStrategy}
+		<div className="min-h-screen bg-gray-100 p-6">
+			<DndContext
+				onDragStart={handleDragStart}
+				onDragEnd={handleDragEnd}
+				onDragCancel={handleDragCancel}
 			>
-				<div className="flex gap-4">
-					{columns.map((column) => (
-						<DraggableKanbanColumn
-							key={column.id}
-							column={column}
-							onAddTask={(columnId) => {
-								setActiveColumnId(columnId);
-								setTaskDialogOpen(true);
-							}}
-						/>
-					))}
-
-					{/* Add Column Button (to the far right) */}
-					<Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-						<DialogTrigger asChild>
-							<Button
-								variant="ghost"
-								className="h-fit self-start mt-1"
-							>
-								<Plus className="mr-1 w-4 h-4" />
-								Add Column
-							</Button>
-						</DialogTrigger>
-						<DialogContent>
-							<DialogHeader>
-								<DialogTitle>New Column</DialogTitle>
-							</DialogHeader>
-							<Input
-								value={newColumnTitle}
-								onChange={(e) =>
-									setNewColumnTitle(e.target.value)
-								}
-								placeholder="Column title"
+				<SortableContext
+					items={columnIds}
+					strategy={horizontalListSortingStrategy}
+				>
+					<div className="flex gap-4">
+						{columns.map((column) => (
+							<DraggableKanbanColumn
+								key={column.id}
+								column={column}
+								onAddTask={(columnId) => {
+									setActiveColumnId(columnId);
+									setIsTaskDialogOpen(true);
+								}}
+								onOpenTask={handleOpenTask}
 							/>
-							<DialogFooter>
-								<Button onClick={() => createColumn.mutate()}>
-									Create
-								</Button>
-							</DialogFooter>
-						</DialogContent>
-					</Dialog>
-				</div>
-			</SortableContext>
+						))}
 
-			{/* Drag Overlay */}
-			<DragOverlay
-				dropAnimation={{ duration: 250, easing: 'ease-out' }}
-				style={{ zIndex: 1000 }}
-			>
-				{activeDraggable ? (
-					activeDraggable.type === 'task' ? (
-						// DragOverlay Card styling
-						<div className="w-64">
-							<div className="cursor-grab">
-								<div className="shadow-sm rounded bg-white">
-									<div className="pb-2 px-3 pt-3 border-b border-gray-200">
-										<h3 className="text-sm font-medium">
-											{activeDraggable.title}
-										</h3>
-									</div>
-									<div className="pt-2 px-3 pb-3 text-xs text-muted-foreground">
-										{/* Additional fields if you have them, e.g. activeDraggable.description */}
-									</div>
-								</div>
-							</div>
-						</div>
-					) : activeDraggable.type === 'column' ? (
-						<div className="w-80 bg-gray-50 rounded shadow p-4 cursor-grab">
-							<h2 className="pb-2 mb-2 border-b border-gray-300 text-xl font-bold">
+						{/* Add Column Button placed to the far right */}
+						<Dialog
+							open={isColumnDialogOpen}
+							onOpenChange={setIsColumnDialogOpen}
+						>
+							<DialogTrigger asChild>
+								<Button
+									variant="ghost"
+									className="h-fit self-start mt-1"
+								>
+									<Plus className="mr-1 w-4 h-4" />
+									Add Column
+								</Button>
+							</DialogTrigger>
+							<DialogContent>
+								<DialogHeader>
+									<DialogTitle>New Column</DialogTitle>
+								</DialogHeader>
+								<Input
+									value={newColumnTitle}
+									onChange={(e) =>
+										setNewColumnTitle(e.target.value)
+									}
+									placeholder="Column title"
+								/>
+								<DialogFooter>
+									<Button
+										onClick={() => createColumn.mutate()}
+									>
+										Create
+									</Button>
+								</DialogFooter>
+							</DialogContent>
+						</Dialog>
+					</div>
+				</SortableContext>
+
+				<DragOverlay
+					dropAnimation={{ duration: 250, easing: 'ease-out' }}
+					style={{ zIndex: 1000 }}
+				>
+					{activeDraggable ? (
+						activeDraggable.type === 'task' ? (
+							<div className="w-64 p-2 bg-white shadow rounded cursor-grab">
 								{activeDraggable.title}
-							</h2>
-						</div>
-					) : null
-				) : null}
-			</DragOverlay>
+							</div>
+						) : activeDraggable.type === 'column' ? (
+							<div className="w-80 bg-gray-50 rounded shadow p-4 cursor-grab">
+								<h2 className="pb-2 mb-2 border-b border-gray-300 text-xl font-bold">
+									{activeDraggable.title}
+								</h2>
+							</div>
+						) : null
+					) : null}
+				</DragOverlay>
+			</DndContext>
 
 			{/* Add Task Dialog */}
-			<Dialog open={taskDialogOpen} onOpenChange={setTaskDialogOpen}>
+			<Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
 				<DialogContent>
 					<DialogHeader>
 						<DialogTitle>New Task</DialogTitle>
@@ -396,6 +415,15 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
-		</DndContext>
+
+			{/* Advanced Task Details Dialog */}
+			{selectedTask && (
+				<TaskDetailsDialog
+					task={selectedTask}
+					onClose={() => setSelectedTask(null)}
+					onSave={handleSaveTaskDetails}
+				/>
+			)}
+		</div>
 	);
 }

@@ -5,20 +5,19 @@ import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-
-export type Task = {
-	id: string;
-	title: string;
-	order: number;
-	columnId: string;
-};
+import { type TaskDetails as Task } from './TaskDetailsDialog';
 
 interface KanbanTaskProps {
 	task: Task;
 	columnId: string;
+	onOpenDetails: (task: Task) => void;
 }
 
-const KanbanTask: React.FC<KanbanTaskProps> = ({ task, columnId }) => {
+const KanbanTask: React.FC<KanbanTaskProps> = ({
+	task,
+	columnId,
+	onOpenDetails,
+}) => {
 	const {
 		attributes,
 		listeners,
@@ -39,7 +38,15 @@ const KanbanTask: React.FC<KanbanTaskProps> = ({ task, columnId }) => {
 	};
 
 	return (
-		<div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+		<div
+			ref={setNodeRef}
+			style={style}
+			{...attributes}
+			{...listeners}
+			onClick={() => {
+				if (!isDragging) onOpenDetails(task);
+			}}
+		>
 			<Card className="shadow-sm">
 				<CardHeader className="pb-2">
 					<CardTitle className="text-sm font-medium">

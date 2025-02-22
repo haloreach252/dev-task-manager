@@ -4,15 +4,18 @@ import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import KanbanColumn, { Column } from './KanbanColumn';
+import { type TaskDetails as Task } from './TaskDetailsDialog';
 
 interface DraggableKanbanColumnProps {
 	column: Column;
 	onAddTask: (columnId: string) => void;
+	onOpenTask: (task: Task) => void;
 }
 
 const DraggableKanbanColumn: React.FC<DraggableKanbanColumnProps> = ({
 	column,
 	onAddTask,
+	onOpenTask,
 }) => {
 	const { attributes, listeners, setNodeRef, transform, transition } =
 		useSortable({
@@ -41,7 +44,11 @@ const DraggableKanbanColumn: React.FC<DraggableKanbanColumnProps> = ({
 			</div>
 
 			{/* Tasks + "Add Task" button */}
-			<KanbanColumn column={column} onAddTask={onAddTask} />
+			<KanbanColumn
+				column={column}
+				onAddTask={onAddTask}
+				onOpenTask={onOpenTask}
+			/>
 		</div>
 	);
 };
