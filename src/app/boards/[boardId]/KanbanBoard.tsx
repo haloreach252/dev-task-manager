@@ -1,6 +1,7 @@
+// src/app/boards/[boardId]/KanbanBoard.tsx
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-// KanbanBoard.tsx
+
 'use client';
 
 import React, { useCallback, useState } from 'react';
@@ -9,6 +10,10 @@ import {
 	DragEndEvent,
 	DragStartEvent,
 	DragOverlay,
+	useSensor,
+	useSensors,
+	PointerSensor,
+	KeyboardSensor,
 } from '@dnd-kit/core';
 import {
 	SortableContext,
@@ -46,6 +51,16 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 	const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
 	const [activeDraggable, setActiveDraggable] = useState<any>(null);
 	const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+
+	const sensors = useSensors(
+		useSensor(PointerSensor, {
+			activationConstraint: {
+				delay: 100,
+				tolerance: 5,
+			},
+		}),
+		useSensor(KeyboardSensor)
+	);
 
 	const { data: columns = [], isLoading } = useQuery<Column[]>({
 		queryKey: ['columns', boardId],
@@ -295,7 +310,10 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 	// Handler for saving task details.
 	const handleSaveTaskDetails = (updatedTask: Task) => {
 		axios
-			.put(`/api/boards/${boardId}/tasks/${updatedTask.id}`, updatedTask)
+			.put(
+				`/api/boards/${boardId}/tasks/${updatedTask.id}/details`,
+				updatedTask
+			)
 			.then(() => {
 				queryClient.invalidateQueries({
 					queryKey: ['columns', boardId],
@@ -322,6 +340,7 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 				onDragStart={handleDragStart}
 				onDragEnd={handleDragEnd}
 				onDragCancel={handleDragCancel}
+				sensors={sensors}
 			>
 				<SortableContext
 					items={columnIds}

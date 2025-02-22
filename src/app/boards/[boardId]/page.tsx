@@ -1,4 +1,4 @@
-// page.tsx
+// src/app/boards/[boardId]/page.tsx
 'use client';
 
 import { useParams } from 'next/navigation';

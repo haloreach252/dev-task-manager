@@ -1,3 +1,5 @@
+// src/app/boards/[boardId]/KanbanTask.tsx
+
 /* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
