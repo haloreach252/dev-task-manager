@@ -1,6 +1,5 @@
 // src/app/boards/[boardId]/TaskDetailsDialog.tsx
 
-/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -10,14 +9,37 @@ import {
 	DialogHeader,
 	DialogTitle,
 	DialogFooter,
-	DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { type Task, type ChecklistItem } from '@prisma/client';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+	Plus,
+	Trash,
+	Paperclip,
+	Calendar,
+	Tag,
+	CheckSquare,
+} from 'lucide-react';
+import {
+	type Task,
+	type ChecklistItem,
+	type FileAttachment,
+	type Label,
+} from '@prisma/client';
 
 export type TaskDetails = Task & {
-	checklistItems: ChecklistItem[];
+	// Now tasks have multiple checklists rather than a flat array of checklist items.
+	checklists: {
+		id: string;
+		name: string;
+		items: ChecklistItem[];
+	}[];
+	attachments: FileAttachment[];
+	// Note: In your schema, labels are stored via a join table (TaskLabel).
+	// For this UI, ensure your task query returns an array of Label objects.
+	labels: Label[];
 };
 
 interface TaskDetailsDialogProps {
@@ -37,9 +59,14 @@ const TaskDetailsDialog: React.FC<TaskDetailsDialogProps> = ({
 	const [title, setTitle] = useState(task.title);
 	const [description, setDescription] = useState(task.description || '');
 	const [dueDate, setDueDate] = useState(initialDueDate);
-	const [checklist, setChecklist] = useState<ChecklistItem[]>(
-		task.checklistItems || []
+	// Updated state: now an array of checklists.
+	const [checklists, setChecklists] = useState<
+		{ id: string; name: string; items: ChecklistItem[] }[]
+	>(task.checklists || []);
+	const [attachments, setAttachments] = useState<FileAttachment[]>(
+		task.attachments || []
 	);
+	const [labels, setLabels] = useState<Label[]>(task.labels || []);
 
 	useEffect(() => {
 		setTitle(task.title);
@@ -49,141 +76,287 @@ const TaskDetailsDialog: React.FC<TaskDetailsDialogProps> = ({
 				? new Date(task.dueDate).toISOString().substring(0, 10)
 				: ''
 		);
-		setChecklist(task.checklistItems || []);
+		setChecklists(task.checklists || []);
+		setAttachments(task.attachments || []);
+		setLabels(task.labels || []);
 	}, [task]);
 
-	const addChecklistItem = () => {
-		// Generate a temporary ID; The backend will assign a real one
-		const tempId = Date.now().toString();
-		setChecklist([
-			...checklist,
-			{
-				id: tempId,
-				text: '',
-				completed: false,
-				createdAt: new Date(),
-				updatedAt: new Date(),
-				taskId: task.id,
-			},
-		]);
+	// Handler to add a new (empty) checklist.
+	const addChecklist = () => {
+		const newChecklist = {
+			id: Date.now().toString(),
+			name: 'New Checklist',
+			items: [] as ChecklistItem[],
+		};
+		setChecklists([...checklists, newChecklist]);
 	};
 
-	const updateChecklistItem = (id: string, text: string) => {
-		setChecklist(
-			checklist.map((item) => (item.id === id ? { ...item, text } : item))
-		);
-	};
-
-	const toggleChecklistItem = (id: string) => {
-		setChecklist(
-			checklist.map((item) =>
-				item.id === id ? { ...item, completed: !item.completed } : item
+	// Handler to update a checklist's name.
+	const updateChecklistName = (checklistId: string, newName: string) => {
+		setChecklists(
+			checklists.map((cl) =>
+				cl.id === checklistId ? { ...cl, name: newName } : cl
 			)
 		);
 	};
 
-	const handleSave = () => {
-		const updatedDueDate = dueDate ? new Date(dueDate) : null;
+	// Handler to add an item to a specific checklist.
+	const addChecklistItem = (checklistId: string) => {
+		setChecklists(
+			checklists.map((cl) => {
+				if (cl.id === checklistId) {
+					const newItem: ChecklistItem = {
+						id: Date.now().toString(),
+						text: '',
+						completed: false,
+						createdAt: new Date(),
+						updatedAt: new Date(),
+						checklistId,
+						// The checklist relation should be set on the backend.
+						// Here we assume the API will use the checklist's id.
+						// If needed, you can add a property like checklistId.
+					};
+					return { ...cl, items: [...cl.items, newItem] };
+				}
+				return cl;
+			})
+		);
+	};
 
+	const updateChecklistItem = (
+		checklistId: string,
+		itemId: string,
+		text: string
+	) => {
+		setChecklists(
+			checklists.map((cl) => {
+				if (cl.id === checklistId) {
+					return {
+						...cl,
+						items: cl.items.map((item) =>
+							item.id === itemId ? { ...item, text } : item
+						),
+					};
+				}
+				return cl;
+			})
+		);
+	};
+
+	const toggleChecklistItem = (checklistId: string, itemId: string) => {
+		setChecklists(
+			checklists.map((cl) => {
+				if (cl.id === checklistId) {
+					return {
+						...cl,
+						items: cl.items.map((item) =>
+							item.id === itemId
+								? { ...item, completed: !item.completed }
+								: item
+						),
+					};
+				}
+				return cl;
+			})
+		);
+	};
+
+	const removeChecklistItem = (checklistId: string, itemId: string) => {
+		setChecklists(
+			checklists.map((cl) => {
+				if (cl.id === checklistId) {
+					return {
+						...cl,
+						items: cl.items.filter((item) => item.id !== itemId),
+					};
+				}
+				return cl;
+			})
+		);
+	};
+
+	const addAttachment = (file: File) => {
+		const newAttachment: FileAttachment = {
+			id: Date.now().toString(),
+			fileName: file.name,
+			fileUrl: URL.createObjectURL(file),
+			fileType: file.type,
+			fileSize: file.size,
+			createdAt: new Date(),
+			taskId: task.id,
+			uploadedById: null,
+		};
+		setAttachments([...attachments, newAttachment]);
+	};
+
+	const handleSave = () => {
 		onSave({
 			...task,
 			title,
 			description,
-			dueDate: updatedDueDate,
-			checklistItems: checklist,
+			dueDate: dueDate ? new Date(dueDate) : null,
+			checklists,
+			attachments,
+			labels,
 		});
+		onClose();
 	};
 
 	return (
-		<Dialog
-			open
-			onOpenChange={(open) => {
-				if (!open) onClose();
-			}}
-		>
-			<DialogContent className="w-[90vw] max-w-2xl">
-				<DialogHeader>
-					<DialogTitle>Edit Task</DialogTitle>
-				</DialogHeader>
-				<div className="space-y-4">
-					<div>
-						<label className="block text-sm font-medium text-gray-700">
-							Title
+		<Dialog open onOpenChange={onClose}>
+			<DialogContent className="flex flex-col md:flex-row max-w-4xl">
+				{/* Main Content */}
+				<div className="flex-1 p-4">
+					<DialogHeader>
+						<DialogTitle>
+							<Input
+								value={title}
+								onChange={(e) => setTitle(e.target.value)}
+								placeholder="Task Title"
+							/>
+						</DialogTitle>
+					</DialogHeader>
+
+					<Textarea
+						value={description}
+						onChange={(e) => setDescription(e.target.value)}
+						placeholder="Add a description..."
+						className="my-4"
+					/>
+
+					{/* Due Date */}
+					<div className="my-4">
+						<label className="flex items-center gap-2">
+							<Calendar className="w-5 h-5" />
+							<input
+								type="date"
+								value={dueDate}
+								onChange={(e) => setDueDate(e.target.value)}
+								className="border rounded p-1"
+							/>
 						</label>
-						<Input
-							value={title}
-							onChange={(e) => setTitle(e.target.value)}
-							className="mt-1"
-						/>
 					</div>
-					<div>
-						<label className="block text-sm font-medium text-gray-700">
-							Description
-						</label>
-						<textarea
-							value={description}
-							onChange={(e) => setDescription(e.target.value)}
-							className="mt-1 block w-full rounded-md border border-gray-300 p-2 shadow-sm"
-							rows={4}
-						/>
-					</div>
-					<div>
-						<label className="block text-sm font-medium text-gray-700">
-							Due Date
-						</label>
-						<Input
-							type="date"
-							value={dueDate}
-							onChange={(e) => setDueDate(e.target.value)}
-							className="mt-1"
-						/>
-					</div>
-					<div>
-						<label className="block text-sm font-medium text-gray-700">
-							Checklist
-						</label>
-						<div className="mt-1 space-y-2">
-							{checklist.map((item) => (
-								<div
-									key={item.id}
-									className="flex items-center space-x-2"
+
+					{/* Multiple Checklists */}
+					<div className="my-4">
+						<h3 className="font-bold mb-2">Checklists</h3>
+						{checklists.map((cl) => (
+							<div key={cl.id} className="mb-4 border p-2">
+								<Input
+									value={cl.name}
+									onChange={(e) =>
+										updateChecklistName(
+											cl.id,
+											e.target.value
+										)
+									}
+									placeholder="Checklist name"
+									className="mb-2"
+								/>
+								{cl.items.map((item) => (
+									<div
+										key={item.id}
+										className="flex items-center gap-2 mb-2"
+									>
+										<Checkbox
+											checked={item.completed}
+											onCheckedChange={() =>
+												toggleChecklistItem(
+													cl.id,
+													item.id
+												)
+											}
+										/>
+										<Input
+											value={item.text}
+											onChange={(e) =>
+												updateChecklistItem(
+													cl.id,
+													item.id,
+													e.target.value
+												)
+											}
+											placeholder="Checklist item"
+										/>
+										<Button
+											variant="ghost"
+											onClick={() =>
+												removeChecklistItem(
+													cl.id,
+													item.id
+												)
+											}
+										>
+											<Trash className="w-4 h-4" />
+										</Button>
+									</div>
+								))}
+								<Button
+									variant="outline"
+									onClick={() => addChecklistItem(cl.id)}
 								>
-									<input
-										type="checkbox"
-										checked={item.completed}
-										onChange={() =>
-											toggleChecklistItem(item.id)
-										}
-										className="h-4 w-4"
-									/>
-									<Input
-										value={item.text}
-										onChange={(e) =>
-											updateChecklistItem(
-												item.id,
-												e.target.value
-											)
-										}
-										className="flex-1"
-									/>
-								</div>
-							))}
-							<Button
-								variant="ghost"
-								size="sm"
-								onClick={addChecklistItem}
-							>
-								+ Add Item
-							</Button>
-						</div>
+									<Plus className="w-4 h-4 mr-1" /> Add
+									Checklist Item
+								</Button>
+							</div>
+						))}
+						<Button variant="outline" onClick={addChecklist}>
+							<Plus className="w-4 h-4 mr-1" /> Add New Checklist
+						</Button>
 					</div>
+
+					{/* Attachments */}
+					<div className="my-4">
+						<h3 className="font-bold mb-2">Attachments</h3>
+						<input
+							type="file"
+							onChange={(e) =>
+								e.target.files &&
+								addAttachment(e.target.files[0])
+							}
+						/>
+						<ul className="mt-2">
+							{attachments.map((file) => (
+								<li key={file.id}>
+									<a
+										href={file.fileUrl}
+										target="_blank"
+										rel="noopener noreferrer"
+									>
+										{file.fileName}
+									</a>
+								</li>
+							))}
+						</ul>
+					</div>
+
+					<DialogFooter>
+						<Button onClick={handleSave}>Save</Button>
+						<Button variant="outline" onClick={onClose}>
+							Cancel
+						</Button>
+					</DialogFooter>
 				</div>
-				<DialogFooter className="mt-4">
-					<Button variant="outline" onClick={onClose}>
-						Cancel
+
+				{/* Sidebar */}
+				<div className="w-full md:w-64 border-l p-4 space-y-2">
+					<h3 className="font-bold">Actions</h3>
+					<Button variant="outline" onClick={addChecklist}>
+						<CheckSquare className="w-4 h-4 mr-2" /> Add Checklist
 					</Button>
-					<Button onClick={handleSave}>Save</Button>
-				</DialogFooter>
+					<Button variant="outline">
+						<Calendar className="w-4 h-4 mr-2" /> Set Due Date
+					</Button>
+					<Button variant="outline">
+						<Paperclip className="w-4 h-4 mr-2" /> Attach File
+					</Button>
+					<Button variant="outline">
+						<Tag className="w-4 h-4 mr-2" /> Add Label
+					</Button>
+					<Button variant="destructive">
+						<Trash className="w-4 h-4 mr-2" /> Delete Task
+					</Button>
+				</div>
 			</DialogContent>
 		</Dialog>
 	);

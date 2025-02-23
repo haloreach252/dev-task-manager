@@ -310,7 +310,7 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 	// Handler for saving task details.
 	const handleSaveTaskDetails = (updatedTask: Task) => {
 		axios
-			.put(
+			.patch(
 				`/api/boards/${boardId}/tasks/${updatedTask.id}/details`,
 				updatedTask
 			)

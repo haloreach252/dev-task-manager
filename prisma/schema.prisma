@@ -1,5 +1,3 @@
-// prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -165,21 +163,36 @@ model Task {
   histories     TaskHistory[]
   attachments   FileAttachment[]
 
-  checklistItems ChecklistItem[]
+  // New relation: each task can have multiple checklists
+  checklists    Checklist[]
+}
+
+model Checklist {
+  id         String         @id @default(uuid())
+  name       String         // e.g. "To Do", "In Progress", etc.
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  // Each checklist belongs to a task
+  task       Task           @relation(fields: [taskId], references: [id])
+  taskId     String
+
+  // Checklist items under this checklist
+  items      ChecklistItem[]
 }
 
 model ChecklistItem {
-  id String @id @default(uuid())
-  text String
-  completed Boolean @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String      @id @default(uuid())
+  text        String
+  completed   Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
-  // Each checklist item belongs to a task
-  task Task @relation(fields: [taskId], references: [id])
-  taskId String
+  // Each checklist item belongs to a checklist
+  checklist   Checklist   @relation(fields: [checklistId], references: [id])
+  checklistId String
 
-  @@index([taskId])
+  @@index([checklistId])
 }
 
 model TaskLabel {

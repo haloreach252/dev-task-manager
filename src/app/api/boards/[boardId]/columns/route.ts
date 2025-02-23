@@ -13,10 +13,28 @@ export async function GET(
 		const columns = await prisma.column.findMany({
 			where: { boardId },
 			orderBy: { order: 'asc' },
-			include: { tasks: { orderBy: { order: 'asc' } } },
+			include: {
+				tasks: {
+					orderBy: { order: 'asc' },
+					include: {
+						checklists: { include: { items: true } },
+						attachments: true,
+						labels: { include: { label: true } },
+					},
+				},
+			},
 		});
 
-		return NextResponse.json(columns);
+		// Transform each task's labels to a simple array of Label objects
+		const transformedColumns = columns.map((column) => ({
+			...column,
+			tasks: column.tasks.map((task) => ({
+				...task,
+				labels: task.labels.map((taskLabel) => taskLabel.label),
+			})),
+		}));
+
+		return NextResponse.json(transformedColumns);
 	} catch (error) {
 		console.error('GET Columns Error:', error);
 		return NextResponse.json(
