@@ -8,25 +8,20 @@ import { CSS } from '@dnd-kit/utilities';
 import KanbanColumn, { Column } from './KanbanColumn';
 import { type TaskDetails as Task } from './TaskDetailsDialog';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
-import {
-	Popover,
-	PopoverContent,
-	PopoverTrigger,
-} from '@/components/ui/popover';
-import { Button } from '@/components/ui/button';
-import { Palette } from 'lucide-react';
-import { HexColorPicker } from 'react-colorful';
+import ColumnActionsPopover from './ColumnActionsPopover';
 
 interface DraggableKanbanColumnProps {
 	column: Column;
 	onAddTask: (columnId: string) => void;
 	onOpenTask: (task: Task) => void;
+	onArchiveColumn?: (columnId: string) => void;
 }
 
 const DraggableKanbanColumn: React.FC<DraggableKanbanColumnProps> = ({
 	column,
 	onAddTask,
 	onOpenTask,
+	onArchiveColumn,
 }) => {
 	const { attributes, listeners, setNodeRef, transform, transition } =
 		useSortable({
@@ -42,6 +37,10 @@ const DraggableKanbanColumn: React.FC<DraggableKanbanColumnProps> = ({
 	// Local state for the column background color (hex string)
 	const [bgColor, setBgColor] = useState(column.backgroundColor ?? '#ffffff');
 
+	const handleArchive = () => {
+		if (onArchiveColumn) onArchiveColumn(column.id);
+	};
+
 	return (
 		<Card
 			ref={setNodeRef}
@@ -49,27 +48,20 @@ const DraggableKanbanColumn: React.FC<DraggableKanbanColumnProps> = ({
 			className="w-80 rounded shadow"
 		>
 			<CardHeader className="flex items-center justify-between border-b border-gray-300 pb-2">
-				<div className="cursor-grab" {...attributes} {...listeners}>
+				<div
+					className="flex flex-row gap-4 cursor-grab"
+					{...attributes}
+					{...listeners}
+				>
 					<h2 className="text-xl font-bold">{column.title}</h2>
+					<ColumnActionsPopover
+						columnId={column.id}
+						boardId={column.boardId}
+						bgColor={bgColor}
+						setBgColor={setBgColor}
+						onArchive={handleArchive}
+					/>
 				</div>
-				<Popover>
-					<PopoverTrigger asChild>
-						<Button variant="ghost" className="p-1">
-							<Palette className="w-4 h-4" />
-						</Button>
-					</PopoverTrigger>
-					<PopoverContent className="p-2 space-y-2">
-						<HexColorPicker
-							color={bgColor}
-							onChange={setBgColor}
-							className="rounded-md"
-						/>
-						<div className="text-sm text-gray-500">
-							Selected color:{' '}
-							<span className="font-medium">{bgColor}</span>
-						</div>
-					</PopoverContent>
-				</Popover>
 			</CardHeader>
 			<CardContent className="p-4">
 				{/* Tasks + "Add Task" button */}
