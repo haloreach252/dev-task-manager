@@ -8,7 +8,7 @@
 		"start": "next start",
 		"lint": "next lint",
 		"dev-public": "next dev --turbopack -p 7890",
-		"postinstall": "prisma generate"
+		"postinstall": "prisma generate && prisma migrate deploy"
 	},
 	"dependencies": {
 		"@dnd-kit/core": "^6.3.1",
