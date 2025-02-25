@@ -15,11 +15,12 @@ enum BoardVisibility {
 }
 
 model User {
-  id              String         @id @default(uuid())
-  email           String         @unique
-  name            String?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  id             String   @id @default(uuid())
+  email          String   @unique
+  name           String?
+  profilePicture String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   // Relations
   teamMemberships TeamMember[]
@@ -29,24 +30,24 @@ model User {
 }
 
 model Team {
-  id          String         @id @default(uuid())
-  name        String
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  members     TeamMember[]
-  roles       TeamRole[]
-  projects    Project[]
-  invites     Invite[]
+  members      TeamMember[]
+  roles        TeamRole[]
+  projects     Project[]
+  invites      Invite[]
   integrations Integration[]
 }
 
 model TeamRole {
-  id          String      @id @default(uuid())
-  name        String      // e.g. "Admin", "Editor", "Viewer" or custom role name
-  permissions Json        // JSON object storing permission details
-  team        Team        @relation(fields: [teamId], references: [id])
+  id          String @id @default(uuid())
+  name        String // e.g. "Admin", "Editor", "Viewer" or custom role name
+  permissions Json // JSON object storing permission details
+  team        Team   @relation(fields: [teamId], references: [id])
   teamId      String
 
   // Inverse relation to members using this role
@@ -54,142 +55,142 @@ model TeamRole {
 }
 
 model TeamMember {
-  id                String    @id @default(uuid())
-  user              User      @relation(fields: [userId], references: [id])
+  id                String   @id @default(uuid())
+  user              User     @relation(fields: [userId], references: [id])
   userId            String
-  team              Team      @relation(fields: [teamId], references: [id])
+  team              Team     @relation(fields: [teamId], references: [id])
   teamId            String
-  teamRole          TeamRole  @relation(fields: [teamRoleId], references: [id])
+  teamRole          TeamRole @relation(fields: [teamRoleId], references: [id])
   teamRoleId        String
-  customPermissions Json?     // Optional custom permissions specific to the user
-  joinedAt          DateTime  @default(now())
+  customPermissions Json? // Optional custom permissions specific to the user
+  joinedAt          DateTime @default(now())
 
   @@unique([userId, teamId])
 }
 
 model Invite {
-  id         String    @id @default(uuid())
-  email      String
-  token      String    @unique
-  role       String    // Suggested default role name; can be used to pre-set a role upon acceptance
-  status     String    // e.g. "pending", "accepted", "expired"
-  createdAt  DateTime  @default(now())
-  expiresAt  DateTime?
-  
-  team       Team      @relation(fields: [teamId], references: [id])
-  teamId     String
+  id        String    @id @default(uuid())
+  email     String
+  token     String    @unique
+  role      String // Suggested default role name; can be used to pre-set a role upon acceptance
+  status    String // e.g. "pending", "accepted", "expired"
+  createdAt DateTime  @default(now())
+  expiresAt DateTime?
+
+  team   Team   @relation(fields: [teamId], references: [id])
+  teamId String
 }
 
 model Project {
-  id          String    @id @default(uuid())
+  id          String   @id @default(uuid())
   name        String
   description String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  team    Team    @relation(fields: [teamId], references: [id])
-  teamId  String
-  boards  Board[]
+  team   Team    @relation(fields: [teamId], references: [id])
+  teamId String
+  boards Board[]
 }
 
 model Board {
-  id              String         @id @default(uuid())
+  id              String          @id @default(uuid())
   name            String
   visibility      BoardVisibility
-  backgroundColor String?        // For board background customization
+  backgroundColor String? // For board background customization
   textColor       String?
   gradient        String?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
-  project   Project   @relation(fields: [projectId], references: [id])
-  projectId String
-  columns   Column[]
+  project    Project             @relation(fields: [projectId], references: [id])
+  projectId  String
+  columns    Column[]
   priorities BoardTaskPriority[]
   labels     Label[]
   histories  TaskHistory[]
 }
 
 model Column {
-  id                  String    @id @default(uuid())
-  title               String
-  order               Int       // Position within the board
-  backgroundColor     String?   // Custom background color
-  backgroundGradient  String?   // Custom background gradient
-  backgroundImage     String?   // URL for background image
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  id                 String   @id @default(uuid())
+  title              String
+  order              Int // Position within the board
+  backgroundColor    String? // Custom background color
+  backgroundGradient String? // Custom background gradient
+  backgroundImage    String? // URL for background image
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
-  board   Board   @relation(fields: [boardId], references: [id])
+  board   Board  @relation(fields: [boardId], references: [id])
   boardId String
   tasks   Task[]
 }
 
 model BoardTaskPriority {
-  id       String   @id @default(uuid())
-  name     String   // e.g. "High", "Medium", "Low", or custom
-  order    Int      // Determines sort order for display
-  board    Board    @relation(fields: [boardId], references: [id])
-  boardId  String
+  id      String @id @default(uuid())
+  name    String // e.g. "High", "Medium", "Low", or custom
+  order   Int // Determines sort order for display
+  board   Board  @relation(fields: [boardId], references: [id])
+  boardId String
 
-  tasks    Task[]   // Tasks that use this priority
+  tasks Task[] // Tasks that use this priority
 }
 
 model Task {
-  id            String         @id @default(uuid())
+  id            String    @id @default(uuid())
   title         String
   description   String?
   dueDate       DateTime?
-  order         Int            // Position within its column
-  coverColor    String?        // Cover customization: color
-  coverGradient String?        // Cover customization: gradient
-  coverImage    String?        // Cover customization: image URL
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  order         Int // Position within its column
+  coverColor    String? // Cover customization: color
+  coverGradient String? // Cover customization: gradient
+  coverImage    String? // Cover customization: image URL
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   // Task belongs to a column (and thereby a board)
-  column        Column   @relation(fields: [columnId], references: [id])
-  columnId      String
+  column   Column @relation(fields: [columnId], references: [id])
+  columnId String
 
   // Optional priority defined per board
-  priority      BoardTaskPriority? @relation(fields: [priorityId], references: [id])
-  priorityId    String?
+  priority   BoardTaskPriority? @relation(fields: [priorityId], references: [id])
+  priorityId String?
 
   // Relations for labels, dependencies, comments, history and attachments
-  labels        TaskLabel[]
-  dependencies  TaskDependency[] @relation("TaskDependencies")
-  dependents    TaskDependency[] @relation("TaskDependents")
-  comments      Comment[]
-  histories     TaskHistory[]
-  attachments   FileAttachment[]
+  labels       TaskLabel[]
+  dependencies TaskDependency[] @relation("TaskDependencies")
+  dependents   TaskDependency[] @relation("TaskDependents")
+  comments     Comment[]
+  histories    TaskHistory[]
+  attachments  FileAttachment[]
 
   // New relation: each task can have multiple checklists
-  checklists    Checklist[]
+  checklists Checklist[]
 }
 
 model Checklist {
-  id         String         @id @default(uuid())
-  name       String         // e.g. "To Do", "In Progress", etc.
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
+  id        String   @id @default(uuid())
+  name      String // e.g. "To Do", "In Progress", etc.
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Each checklist belongs to a task
-  task       Task           @relation(fields: [taskId], references: [id])
-  taskId     String
+  task   Task   @relation(fields: [taskId], references: [id])
+  taskId String
 
   // Checklist items under this checklist
-  items      ChecklistItem[]
+  items ChecklistItem[]
 }
 
 model ChecklistItem {
-  id          String      @id @default(uuid())
-  text        String
-  completed   Boolean     @default(false)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id        String   @id @default(uuid())
+  text      String
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Each checklist item belongs to a checklist
-  checklist   Checklist   @relation(fields: [checklistId], references: [id])
+  checklist   Checklist @relation(fields: [checklistId], references: [id])
   checklistId String
 
   @@index([checklistId])
@@ -207,34 +208,34 @@ model TaskLabel {
 model Label {
   id              String   @id @default(uuid())
   name            String
-  backgroundColor String?  // Background color for the label
+  backgroundColor String? // Background color for the label
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  board   Board      @relation(fields: [boardId], references: [id])
+  board   Board       @relation(fields: [boardId], references: [id])
   boardId String
   tasks   TaskLabel[]
 }
 
 model TaskDependency {
-  id          String   @id @default(uuid())
-  createdAt   DateTime @default(now())
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
 
   // The task that depends on another
-  task        Task    @relation("TaskDependencies", fields: [taskId], references: [id])
-  taskId      String
+  task   Task   @relation("TaskDependencies", fields: [taskId], references: [id])
+  taskId String
 
   // The task being depended upon
-  dependsOn   Task    @relation("TaskDependents", fields: [dependsOnId], references: [id])
+  dependsOn   Task   @relation("TaskDependents", fields: [dependsOnId], references: [id])
   dependsOnId String
 
   @@unique([taskId, dependsOnId])
 }
 
 model Comment {
-  id         String   @id @default(uuid())
-  content    String
-  createdAt  DateTime @default(now())
+  id        String   @id @default(uuid())
+  content   String
+  createdAt DateTime @default(now())
 
   task     Task   @relation(fields: [taskId], references: [id])
   taskId   String
@@ -243,43 +244,43 @@ model Comment {
 }
 
 model TaskHistory {
-  id         String   @id @default(uuid())
-  change     String   // A description or JSON of the change
-  createdAt  DateTime @default(now())
+  id        String   @id @default(uuid())
+  change    String // A description or JSON of the change
+  createdAt DateTime @default(now())
 
-  task       Task    @relation(fields: [taskId], references: [id])
-  taskId     String
+  task   Task   @relation(fields: [taskId], references: [id])
+  taskId String
 
   // Storing history at the board level for visibility
-  board      Board   @relation(fields: [boardId], references: [id])
-  boardId    String
+  board   Board  @relation(fields: [boardId], references: [id])
+  boardId String
 
-  author     User?   @relation(fields: [authorId], references: [id])
-  authorId   String?
+  author   User?   @relation(fields: [authorId], references: [id])
+  authorId String?
 }
 
 model FileAttachment {
-  id         String   @id @default(uuid())
-  fileUrl    String
-  fileName   String
-  fileType   String?
-  fileSize   Int?
-  createdAt  DateTime @default(now())
+  id        String   @id @default(uuid())
+  fileUrl   String
+  fileName  String
+  fileType  String?
+  fileSize  Int?
+  createdAt DateTime @default(now())
 
-  task       Task   @relation(fields: [taskId], references: [id])
-  taskId     String
+  task   Task   @relation(fields: [taskId], references: [id])
+  taskId String
 
-  uploadedBy User? @relation("UserFileAttachments", fields: [uploadedById], references: [id])
+  uploadedBy   User?   @relation("UserFileAttachments", fields: [uploadedById], references: [id])
   uploadedById String?
 }
 
 model Integration {
-  id         String   @id @default(uuid())
-  provider   String   // e.g. "GITHUB", "GOOGLE_DOCS", "DISCORD"
-  config     String   // JSON string containing configuration details
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(uuid())
+  provider  String // e.g. "GITHUB", "GOOGLE_DOCS", "DISCORD"
+  config    String // JSON string containing configuration details
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  team       Team   @relation(fields: [teamId], references: [id])
-  teamId     String
+  team   Team   @relation(fields: [teamId], references: [id])
+  teamId String
 }

@@ -2,6 +2,9 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import LogoutButton from './LogoutButton';
 import { ModeToggle } from './ThemeToggle';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import prisma from '@/lib/prisma';
 
 type GeneratedLink = {
 	href: string;
@@ -22,6 +25,14 @@ export default async function NavBar() {
 		//console.log("Supabase NavBar error: ", error);
 	}
 
+	let userProfile = null;
+
+	if (data?.user) {
+		userProfile = await prisma.user.findUnique({
+			where: { id: data.user.id },
+		});
+	}
+
 	return (
 		<nav className="flex items-center justify-between p-4 bg-gray-800 text-white">
 			<div className="flex gap-4">
@@ -33,12 +44,36 @@ export default async function NavBar() {
 						</Link>
 					))}
 			</div>
+
 			<div className="flex gap-4">
 				<ModeToggle />
 				{!data?.user ? (
 					<Link href="/auth">Login or Signup</Link>
 				) : (
-					<LogoutButton />
+					<>
+						<Link href="/profile">
+							<Button
+								variant="secondary"
+								size="icon"
+								className="bg-gray-800 hover:bg-gray-800"
+							>
+								<Avatar className="mx-auto">
+									<AvatarImage
+										src={userProfile?.profilePicture || ''}
+										alt={
+											userProfile?.name ||
+											'User profile picture'
+										}
+									/>
+									<AvatarFallback>
+										{userProfile?.name?.charAt(0) || 'U'}
+									</AvatarFallback>
+								</Avatar>
+							</Button>
+						</Link>
+
+						<LogoutButton />
+					</>
 				)}
 			</div>
 		</nav>
