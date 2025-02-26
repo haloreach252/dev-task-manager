@@ -67,6 +67,7 @@ const TaskDetailsDialog: React.FC<TaskDetailsDialogProps> = ({
 		task.attachments || []
 	);
 	const [labels, setLabels] = useState<Label[]>(task.labels || []);
+	const [hasDueDate, setHasDueDate] = useState(task.dueDate ? true : false);
 
 	useEffect(() => {
 		setTitle(task.title);
@@ -202,6 +203,12 @@ const TaskDetailsDialog: React.FC<TaskDetailsDialogProps> = ({
 		onClose();
 	};
 
+	const handleAddDueDate = () => {
+		const today = new Date().toISOString().substring(0, 10); // Format to 'YYYY-MM-DD'
+		setDueDate(today);
+		setHasDueDate(true);
+	};
+
 	return (
 		<Dialog open onOpenChange={onClose}>
 			<DialogContent className="flex flex-col md:flex-row max-w-4xl">
@@ -225,18 +232,20 @@ const TaskDetailsDialog: React.FC<TaskDetailsDialogProps> = ({
 					/>
 
 					{/* Due Date */}
-					<div className="my-4">
-						<label className="flex items-center gap-2">
-							<Calendar className="w-5 h-5" />
-							<input
-								type="date"
-								value={dueDate}
-								onChange={(e) => setDueDate(e.target.value)}
-								className="border rounded p-1"
-							/>
-						</label>
-					</div>
-
+					{hasDueDate && (
+						<div className="my-4">
+							<label className="flex items-center gap-2">
+								<Calendar className="w-5 h-5" />
+								<input
+									type="date"
+									value={dueDate}
+									onChange={(e) => setDueDate(e.target.value)}
+									className="border rounded p-1"
+								/>
+							</label>
+						</div>
+					)}
+					
 					{/* Multiple Checklists */}
 					<div className="my-4">
 						<h3 className="font-bold mb-2">Checklists</h3>
@@ -344,7 +353,7 @@ const TaskDetailsDialog: React.FC<TaskDetailsDialogProps> = ({
 					<Button variant="outline" onClick={addChecklist}>
 						<CheckSquare className="w-4 h-4 mr-2" /> Add Checklist
 					</Button>
-					<Button variant="outline">
+					<Button variant="outline" onClick={handleAddDueDate}>
 						<Calendar className="w-4 h-4 mr-2" /> Set Due Date
 					</Button>
 					<Button variant="outline">
