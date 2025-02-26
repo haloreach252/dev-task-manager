@@ -28,6 +28,7 @@ import {
 	type FileAttachment,
 	type Label,
 } from '@prisma/client';
+import axios from 'axios';
 
 export type TaskDetails = Task & {
 	// Now tasks have multiple checklists rather than a flat array of checklist items.
@@ -46,12 +47,14 @@ interface TaskDetailsDialogProps {
 	task: TaskDetails;
 	onClose: () => void;
 	onSave: (updatedTask: TaskDetails) => void;
+	boardId: string;
 }
 
 const TaskDetailsDialog: React.FC<TaskDetailsDialogProps> = ({
 	task,
 	onClose,
 	onSave,
+	boardId
 }) => {
 	const initialDueDate = task.dueDate
 		? new Date(task.dueDate).toISOString().substring(0, 10)
@@ -68,6 +71,8 @@ const TaskDetailsDialog: React.FC<TaskDetailsDialogProps> = ({
 	);
 	const [labels, setLabels] = useState<Label[]>(task.labels || []);
 	const [hasDueDate, setHasDueDate] = useState(task.dueDate ? true : false);
+	const [hasChecklist, setHasChecklist] = useState(checklists.length ? true : false);
+	const [isLabelModalOpen, setIsLabelModalOpen] = useState(false);
 
 	useEffect(() => {
 		setTitle(task.title);
@@ -82,8 +87,27 @@ const TaskDetailsDialog: React.FC<TaskDetailsDialogProps> = ({
 		setLabels(task.labels || []);
 	}, [task]);
 
+	const handleSelectLabel = async (label: Label) => {
+		await axios.post(`/api/boards/${boardId}/tasks/${task.id}/labels`, {
+			labelId: label.id,
+			action: 'add'
+		});
+
+		setLabels([...labels, label]);
+	}
+
+	const handleDeselectLabel = async (labelId: string) => {
+		await axios.post(`/api/boards/${boardId}/tasks/${task.id}/labels`, {
+			labelId,
+			action: 'remove'
+		});
+
+		setLabels(labels.filter((l) => l.id !== labelId));
+	}
+
 	// Handler to add a new (empty) checklist.
 	const addChecklist = () => {
+		setHasChecklist(true);
 		const newChecklist = {
 			id: Date.now().toString(),
 			name: 'New Checklist',
@@ -174,6 +198,10 @@ const TaskDetailsDialog: React.FC<TaskDetailsDialogProps> = ({
 				return cl;
 			})
 		);
+
+		if (checklists.length === 0) {
+			setHasChecklist(false);
+		}
 	};
 
 	const addAttachment = (file: File) => {
@@ -231,6 +259,20 @@ const TaskDetailsDialog: React.FC<TaskDetailsDialogProps> = ({
 						className="my-4"
 					/>
 
+					<div className='my-4'>
+						<h3 className='font-bold mb-2'>Labels</h3>
+						{labels.map((label: Label) => (
+							<span
+								key={label.id}
+								className='px-2 py-1 rounded-lg text-sm font-semibold'
+								style={{ backgroundColor: label.backgroundColor }}
+							>
+								{label.name}
+							</span>
+						))}
+						
+					</div>
+
 					{/* Due Date */}
 					{hasDueDate && (
 						<div className="my-4">
@@ -247,72 +289,75 @@ const TaskDetailsDialog: React.FC<TaskDetailsDialogProps> = ({
 					)}
 					
 					{/* Multiple Checklists */}
-					<div className="my-4">
-						<h3 className="font-bold mb-2">Checklists</h3>
-						{checklists.map((cl) => (
-							<div key={cl.id} className="mb-4 border p-2">
-								<Input
-									value={cl.name}
-									onChange={(e) =>
-										updateChecklistName(
-											cl.id,
-											e.target.value
-										)
-									}
-									placeholder="Checklist name"
-									className="mb-2"
-								/>
-								{cl.items.map((item) => (
-									<div
-										key={item.id}
-										className="flex items-center gap-2 mb-2"
-									>
-										<Checkbox
-											checked={item.completed}
-											onCheckedChange={() =>
-												toggleChecklistItem(
-													cl.id,
-													item.id
-												)
-											}
-										/>
-										<Input
-											value={item.text}
-											onChange={(e) =>
-												updateChecklistItem(
-													cl.id,
-													item.id,
-													e.target.value
-												)
-											}
-											placeholder="Checklist item"
-										/>
-										<Button
-											variant="ghost"
-											onClick={() =>
-												removeChecklistItem(
-													cl.id,
-													item.id
-												)
-											}
+					{hasChecklist && (
+						<div className="my-4">
+							<h3 className="font-bold mb-2">Checklists</h3>
+							{checklists.map((cl) => (
+								<div key={cl.id} className="mb-4 border p-2">
+									<Input
+										value={cl.name}
+										onChange={(e) =>
+											updateChecklistName(
+												cl.id,
+												e.target.value
+											)
+										}
+										placeholder="Checklist name"
+										className="mb-2"
+									/>
+									{cl.items.map((item) => (
+										<div
+											key={item.id}
+											className="flex items-center gap-2 mb-2"
 										>
-											<Trash className="w-4 h-4" />
-										</Button>
-									</div>
-								))}
-								<Button
-									variant="outline"
-									onClick={() => addChecklistItem(cl.id)}
-								>
-									<Plus className="w-4 h-4 mr-1" /> Add
-									Checklist Item
-								</Button>
-							</div>
-						))}
-						<Button variant="outline" onClick={addChecklist}>
-							<Plus className="w-4 h-4 mr-1" /> Add New Checklist
-						</Button>
-					</div>
+											<Checkbox
+												checked={item.completed}
+												onCheckedChange={() =>
+													toggleChecklistItem(
+														cl.id,
+														item.id
+													)
+												}
+											/>
+											<Input
+												value={item.text}
+												onChange={(e) =>
+													updateChecklistItem(
+														cl.id,
+														item.id,
+														e.target.value
+													)
+												}
+												placeholder="Checklist item"
+											/>
+											<Button
+												variant="ghost"
+												onClick={() =>
+													removeChecklistItem(
+														cl.id,
+														item.id
+													)
+												}
+											>
+												<Trash className="w-4 h-4" />
+											</Button>
+										</div>
+									))}
+									<Button
+										variant="outline"
+										onClick={() => addChecklistItem(cl.id)}
+									>
+										<Plus className="w-4 h-4 mr-1" /> Add
+										Checklist Item
+									</Button>
+								</div>
+							))}
+							<Button variant="outline" onClick={addChecklist}>
+								<Plus className="w-4 h-4 mr-1" /> Add New Checklist
+							</Button>
+						</div>
+					)}
+					
 
 					{/* Attachments */}
 					<div className="my-4">

@@ -1,3 +1,5 @@
+// src/app/api/boards/[boardId]/tasks/[taskId]/details/route.ts
+
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
