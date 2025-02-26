@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
 	Popover,
 	PopoverContent,
@@ -17,6 +17,7 @@ interface ColumnActionsPopoverProps {
 	bgColor: string;
 	setBgColor: (color: string) => void;
 	onArchive?: () => void;
+	setIsPaletteOpen: (isOpen: boolean) => void;
 }
 
 const ColumnActionsPopover: React.FC<ColumnActionsPopoverProps> = ({
@@ -25,7 +26,15 @@ const ColumnActionsPopover: React.FC<ColumnActionsPopoverProps> = ({
 	bgColor,
 	setBgColor,
 	onArchive,
+	setIsPaletteOpen
 }) => {
+	const [isOpen, setIsOpen] = useState(false);
+
+	const handleOpenChange = (open: boolean) => {
+		setIsOpen(open);
+		setIsPaletteOpen(open);
+	}
+
 	const updateColorMutation = useUpdateColumnColor();
 
 	const handleColorChange = (newColor: string) => {
@@ -41,7 +50,7 @@ const ColumnActionsPopover: React.FC<ColumnActionsPopoverProps> = ({
 	};
 
 	return (
-		<Popover>
+		<Popover open={isOpen} onOpenChange={handleOpenChange}>
 			<PopoverTrigger asChild>
 				<Button variant="ghost" className="p-1">
 					<Palette className="w-4 h-4" />
