@@ -91,6 +91,7 @@ const DraggableKanbanColumn: React.FC<DraggableKanbanColumnProps> = ({
 					column={column}
 					onAddTask={onAddTask}
 					onOpenTask={onOpenTask}
+					titleColor={titleColor}
 				/>
 			</CardContent>
 		</Card>
