@@ -3,6 +3,7 @@ import './globals.css';
 import NavBar from '@/components/NavBar';
 import Providers from '@/components/Providers';
 import { ThemeProvider } from '@/components/ThemeProvider';
+import Footer from '@/components/Footer';
 
 export default function RootLayout({
 	children,
@@ -20,6 +21,7 @@ export default function RootLayout({
 						<NavBar />
 						<main>{children}</main>
 						<Toaster />
+						<Footer />
 					</Providers>
 				</ThemeProvider>
 			</body>
