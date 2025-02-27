@@ -25,6 +25,8 @@ A **Trello-like project management tool** designed for **game developers and gen
 - **Board Customization**:
   - Custom **backgrounds, colors, and gradients** for boards, cards, and tasks.
   - Ability to **rearrange columns** freely.
+- **Board Snapshots**: Restore previous board states (up to a limit)
+- **Board Column Limits**: Set limits on the amount of tasks in a column to reduce overloading (e.g. max 3 tasks in 'In Progress')
 
 #### **3. Task Features**
 - **Task Properties**:
@@ -34,6 +36,8 @@ A **Trello-like project management tool** designed for **game developers and gen
   - **Checklists** for checkable lists of items
 - **Custom Task Statuses** instead of fixed “To Do, In Progress, Done”.
 - **Task Overview Table**: A centralized table to view all tasks, cards, and boards.
+- **Task Archiving**: Archive completed tasks to reduce clutter
+- **Task Assignment**: Assign a task to one or multiple board members
 
 #### **4. Collaboration & Realtime Features**
 - **Live Presence Indicators** (see who is online and editing a task).
