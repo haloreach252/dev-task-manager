@@ -2,7 +2,7 @@
 
 ## **Overview**
 
-A **Trello-like project management tool** designed for **game developers and general project management**, providing **real-time collaboration**, **custom workflows**, and **task organization**. It features **teams, roles, customizable boards, integrations, and flexible layouts** to fit different project needs.
+A **Trello-like project management tool** designed for **developers and general project management**, providing **real-time collaboration**, **custom workflows**, and **task organization**. It features **teams, roles, customizable boards, integrations, and flexible layouts** to fit different project needs.
 
 ## **Key Features**
 
