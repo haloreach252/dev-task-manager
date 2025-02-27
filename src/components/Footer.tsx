@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { Separator } from './ui/separator';
-import { FaGithub } from 'react-icons/fa';
+import { FaGithub, FaDiscord } from 'react-icons/fa';
 import { MessageCircle, FileText, Shield, Info, List } from 'lucide-react';
 
 export default function Footer() {
@@ -62,7 +62,7 @@ export default function Footer() {
 							</FooterLink>
 							<FooterLink
 								href="https://discord.com"
-								icon={<MessageCircle className="w-4 h-4" />}
+								icon={<FaDiscord className="w-4 h-4" />}
 							>
 								Discord
 							</FooterLink>
