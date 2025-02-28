@@ -1,8 +1,8 @@
-# Dev Task Manager
+# Miniverse Project Manager
 
 ## Overview
 
-The **Dev Task Manager** is a powerful and easy-to-use project management tool designed for developers and general project management. Unlike other tools that require multiple apps to manage different aspects of a project, this tool consolidates various project management functionalities into a single app. It is built to accommodate **solo users, teams, and enterprises** alike.
+The **Miniverse Project Manager** is a powerful and easy-to-use project management tool designed for developers and general project management. Unlike other tools that require multiple apps to manage different aspects of a project, this tool consolidates various project management functionalities into a single app. It is built to accommodate **solo users, teams, and enterprises** alike.
 
 ### Key Highlights:
 

@@ -19,7 +19,7 @@ export default function HomePage() {
 				transition={{ duration: 0.6, ease: 'easeOut' }}
 			>
 				<h1 className="text-5xl font-bold">
-					Dev Task Management, Done Right.
+					Project Management, Done Right.
 				</h1>
 				<p className="mt-3 text-lg">
 					A Trello-like project management tool for developers and
@@ -47,7 +47,7 @@ export default function HomePage() {
 			{/* Feature Highlights */}
 			<section className="text-center space-y-8">
 				<h2 className="text-3xl font-bold">
-					Why Choose Dev Task Manager?
+					Why Choose Miniverse Project Manager?
 				</h2>
 				<p className="text-gray-500 dark:text-gray-400">
 					Powerful tools to streamline development and collaboration.
@@ -122,7 +122,8 @@ export default function HomePage() {
 			>
 				<h2 className="text-3xl font-bold">See It in Action</h2>
 				<p className="mt-3 text-gray-500 dark:text-gray-400">
-					Experience Dev Task Manager with a live interactive demo.
+					Experience Miniverse Project Manager with a live interactive
+					demo.
 				</p>
 				<div className="mt-6">
 					<Button size="lg" variant="secondary">

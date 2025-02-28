@@ -1,4 +1,4 @@
-# **Brainstorming the Home Page for Dev Task Manager**
+# **Brainstorming the Home Page for Miniverse Project Manager**
 
 Since this is a **Trello-like project management tool** specifically designed for **developers and general project management**, the home page should be engaging, modern, and communicate the tool’s benefits at a glance.
 
@@ -18,7 +18,7 @@ Since this is a **Trello-like project management tool** specifically designed fo
 ### **🔹 Hero Section (Above the Fold)**
 
 -   **Catchy Headline**:
-    -   _"Dev Task Management, Done Right."_
+    -   _"Miniverse Project Management, Done Right."_
     -   _"Flexible, Powerful, and Built for Developers."_
     -   _"Manage Your Development Like a Pro."_
 -   **Subheadline (Short description)**:

@@ -60,7 +60,9 @@ export default async function NavBar() {
 					className="flex items-center space-x-2 text-lg font-semibold"
 				>
 					<Home className="w-5 h-5" />
-					<span className="hidden md:inline">Dev Task Manager</span>
+					<span className="hidden md:inline">
+						Miniverse Project Manager
+					</span>
 				</Link>
 			</div>
 
