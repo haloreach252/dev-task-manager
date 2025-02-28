@@ -23,19 +23,40 @@ export async function GET() {
 				members: { some: { userId } },
 			},
 			include: {
-				members: true, // Fetch members to count total members
+				members: {
+					include: {
+						teamRole: true,
+					}
+				}
 			},
 			orderBy: { name: 'asc' }, // Sort alphabetically
 		});
 
-		// Return teams with member count
-		const teamsWithMemberCount = teams.map(team => ({
-			id: team.id,
-			name: team.name,
-			totalMembers: team.members.length,
-		}));
+		// Return teams with the users permissions
+		const teamsToReturn = teams.map(team => {
+			const userMember = team.members.find(member => member.userId === userId);
 
-		return NextResponse.json({ teams: teamsWithMemberCount });
+			let permissions = [];
+			if (userMember) {
+				const role = userMember.teamRole;
+				const rolePermissions = role?.permissions ? JSON.parse(role.permissions) : {};
+
+				if (role.name === "Admin") {
+					permissions = ["*"];
+				} else {
+					permissions = Object.keys(rolePermissions).filter(key => rolePermissions[key] === true);
+				}
+			}
+
+			return {
+				id: team.id,
+				name: team.name,
+				totalMembers: team.members.length,
+				permissions
+			}
+		})
+
+		return NextResponse.json({ teams: teamsToReturn });
 	} catch (err) {
 		console.error('Error fetching teams:', err);
 		return NextResponse.json(
