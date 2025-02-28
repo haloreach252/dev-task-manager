@@ -70,6 +70,7 @@ export async function POST(request: Request) {
 			userId: user.id,
 			teamId: invite.teamId,
 			teamRoleId: teamRole.id,
+			customPermissions: '{}',
 		},
 	});
 
