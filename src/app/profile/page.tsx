@@ -215,9 +215,9 @@ export default function ProfilePage() {
 						</Button>
 						<Button
 							onClick={handleSave}
-							disabled={updateProfileMutation.isLoading}
+							disabled={updateProfileMutation.isPending}
 						>
-							{updateProfileMutation.isLoading
+							{updateProfileMutation.isPending
 								? 'Saving...'
 								: 'Save Changes'}
 						</Button>
