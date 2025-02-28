@@ -158,11 +158,11 @@ export default function ProjectsPage() {
                   <div className="mt-3 flex justify-between items-center text-sm text-gray-700 dark:text-gray-300">
                     <div className="flex items-center gap-2">
                       <LayoutGrid className="w-4 h-4 text-indigo-600" />
-                      <span>{project.totalBoards > 1 ? project.totalBoards + " Boards" : project.totalBoards + " Board"}</span>
+                      <span>{project.totalBoards !== 1 ? project.totalBoards + " Boards" : project.totalBoards + " Board"}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <ListChecks className="w-4 h-4 text-green-600" />
-                      <span>{project.totalTasks > 1 ? project.totalTasks + " Tasks" : project.totalTasks + " Task"}</span>
+                      <span>{project.totalTasks !== 1 ? project.totalTasks + " Tasks" : project.totalTasks + " Task"}</span>
                     </div>
                   </div>
                 </CardContent>
