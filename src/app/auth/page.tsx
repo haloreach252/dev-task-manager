@@ -1,3 +1,5 @@
+// src/app/auth/page.tsx
+
 import { login, signup, loginWithOtp } from './actions';
 import OAuthButtons from './OAuthButtons';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';

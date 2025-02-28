@@ -1,3 +1,5 @@
+// src/app/auth/OAuthButtons.tsx
+
 'use client';
 
 import { loginWithOAuth } from './actions';
