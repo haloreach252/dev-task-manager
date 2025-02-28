@@ -1,3 +1,5 @@
+// src/app/teams/page.tsx
+
 /* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
@@ -18,7 +20,15 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
-import { Users, PlusCircle, Trash, Pencil, Check, X, Loader } from 'lucide-react';
+import {
+	Users,
+	PlusCircle,
+	Trash,
+	Pencil,
+	Check,
+	X,
+	Loader,
+} from 'lucide-react';
 import DeleteTeamDialog from './DeleteTeamDialog';
 import { useRouter } from 'next/navigation';
 
@@ -29,18 +39,15 @@ type Team = {
 	permissions: string[];
 };
 
-const editPermissions = [
-	"*",
-	"editTeam"
-]
+const editPermissions = ['*', 'editTeam'];
 
-const deletePermissions = [
-	"*",
-	"deleteTeam"
-]
+const deletePermissions = ['*', 'deleteTeam'];
 
-function checkPermissions(userPermissions: string[], againstPermissions: string[]) {
-	return userPermissions.some(r => againstPermissions.includes(r));
+function checkPermissions(
+	userPermissions: string[],
+	againstPermissions: string[]
+) {
+	return userPermissions.some((r) => againstPermissions.includes(r));
 }
 
 export default function TeamsDashboard() {
@@ -94,7 +101,13 @@ export default function TeamsDashboard() {
 
 	// Mutation to update team name
 	const updateTeamName = useMutation({
-		mutationFn: async ({ teamId, name }: { teamId: string; name: string }) => {
+		mutationFn: async ({
+			teamId,
+			name,
+		}: {
+			teamId: string;
+			name: string;
+		}) => {
 			await axios.put(`/api/teams/${teamId}`, { name });
 		},
 		onSuccess: () => {
@@ -142,7 +155,10 @@ export default function TeamsDashboard() {
 	};
 
 	const handleSave = (teamId: string) => {
-		if (editedTeamName.trim() && editedTeamName !== teams?.find((t) => t.id === teamId)?.name) {
+		if (
+			editedTeamName.trim() &&
+			editedTeamName !== teams?.find((t) => t.id === teamId)?.name
+		) {
 			updateTeamName.mutate({ teamId, name: editedTeamName });
 		} else {
 			setEditingTeamId(null);
@@ -172,7 +188,9 @@ export default function TeamsDashboard() {
 					))}
 				</div>
 			) : error ? (
-				<div className="text-center text-red-500">Failed to load teams.</div>
+				<div className="text-center text-red-500">
+					Failed to load teams.
+				</div>
 			) : teams?.length ? (
 				<motion.div
 					initial={{ opacity: 0 }}
@@ -181,39 +199,85 @@ export default function TeamsDashboard() {
 					className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
 				>
 					{teams.map((team) => (
-						<motion.div key={team.id} whileHover={{ scale: 1.02 }} transition={{ duration: 0.2 }}>
+						<motion.div
+							key={team.id}
+							whileHover={{ scale: 1.02 }}
+							transition={{ duration: 0.2 }}
+						>
 							<Card className="hover:shadow-lg transition-transform cursor-pointer">
 								<CardHeader className="flex justify-between items-center">
 									{editingTeamId === team.id ? (
 										<Input
 											value={editedTeamName}
-											onChange={(e) => setEditedTeamName(e.target.value)}
+											onChange={(e) =>
+												setEditedTeamName(
+													e.target.value
+												)
+											}
 											onKeyDown={(e) => {
-												if (e.key === 'Enter' && checkPermissions(team.permissions, editPermissions)) handleSave(team.id);
-												if (e.key === 'Escape' && checkPermissions(team.permissions, editPermissions)) setEditingTeamId(null);
+												if (
+													e.key === 'Enter' &&
+													checkPermissions(
+														team.permissions,
+														editPermissions
+													)
+												)
+													handleSave(team.id);
+												if (
+													e.key === 'Escape' &&
+													checkPermissions(
+														team.permissions,
+														editPermissions
+													)
+												)
+													setEditingTeamId(null);
 											}}
 											autoFocus
 											onBlur={() => handleSave(team.id)}
 										/>
 									) : (
-										<CardTitle className="flex justify-between items-center cursor-pointer" onClick={() => handleEdit(team)}>
+										<CardTitle
+											className="flex justify-between items-center cursor-pointer"
+											onClick={() => handleEdit(team)}
+										>
 											{team.name}
-											{checkPermissions(team.permissions, editPermissions) && (
-												<Button size="icon" variant="ghost">
+											{checkPermissions(
+												team.permissions,
+												editPermissions
+											) && (
+												<Button
+													size="icon"
+													variant="ghost"
+												>
 													<Pencil className="w-4 h-4 text-gray-500" />
 												</Button>
 											)}
 										</CardTitle>
 									)}
 								</CardHeader>
-								<CardContent onClick={() => router.push(`/teams/${team.id}`)}>
+								<CardContent
+									onClick={() =>
+										router.push(`/teams/${team.id}`)
+									}
+								>
 									<div className="flex justify-between items-center text-sm text-gray-700">
 										<div className="flex items-center gap-2">
 											<Users className="w-4 h-4 text-indigo-600" />
-											<span>{team.totalMembers} Members</span>
+											<span>
+												{team.totalMembers} Members
+											</span>
 										</div>
-										{checkPermissions(team.permissions, deletePermissions) && (
-											<Button size="icon" variant="ghost" onClick={() => deleteTeam.mutate(team.id)}>
+										{checkPermissions(
+											team.permissions,
+											deletePermissions
+										) && (
+											<Button
+												size="icon"
+												variant="ghost"
+												onClick={() =>
+													deleteTeam.mutate(team.id)
+												}
+											>
 												<Trash className="w-4 h-4 text-red-500" />
 											</Button>
 										)}
@@ -232,36 +296,43 @@ export default function TeamsDashboard() {
 
 			{/* Create Team Dialog */}
 			<Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create New Team</DialogTitle>
-          </DialogHeader>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Create New Team</DialogTitle>
+					</DialogHeader>
 
-          <Input
-            placeholder="Team Name"
-            value={newTeamName}
-            onChange={(e) => setNewTeamName(e.target.value)}
-          />
+					<Input
+						placeholder="Team Name"
+						value={newTeamName}
+						onChange={(e) => setNewTeamName(e.target.value)}
+					/>
 
-          <DialogFooter>
-            <Button onClick={() => createTeam.mutate()} disabled={!newTeamName}>
-              {createTeam.isPending ? <Loader className="animate-spin w-5 h-5" /> : 'Create Team'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+					<DialogFooter>
+						<Button
+							onClick={() => createTeam.mutate()}
+							disabled={!newTeamName}
+						>
+							{createTeam.isPending ? (
+								<Loader className="animate-spin w-5 h-5" />
+							) : (
+								'Create Team'
+							)}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 
-	  {/* Delete Team Confirmation Dialog */}
-		<DeleteTeamDialog
-			isOpen={!!teamToDelete}
-			onClose={() => setTeamToDelete(null)}
-			onConfirm={() => {
-				if (teamToDelete) {
-					deleteTeam.mutate(teamToDelete.id);
-					setTeamToDelete(null);
-				}
-			}}
-		/>
+			{/* Delete Team Confirmation Dialog */}
+			<DeleteTeamDialog
+				isOpen={!!teamToDelete}
+				onClose={() => setTeamToDelete(null)}
+				onConfirm={() => {
+					if (teamToDelete) {
+						deleteTeam.mutate(teamToDelete.id);
+						setTeamToDelete(null);
+					}
+				}}
+			/>
 		</div>
 	);
 }

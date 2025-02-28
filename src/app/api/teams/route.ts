@@ -1,3 +1,5 @@
+// src/app/api/teams/route.ts
+
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { createClient } from '@/lib/supabase';
@@ -26,25 +28,31 @@ export async function GET() {
 				members: {
 					include: {
 						teamRole: true,
-					}
-				}
+					},
+				},
 			},
 			orderBy: { name: 'asc' }, // Sort alphabetically
 		});
 
 		// Return teams with the users permissions
-		const teamsToReturn = teams.map(team => {
-			const userMember = team.members.find(member => member.userId === userId);
+		const teamsToReturn = teams.map((team) => {
+			const userMember = team.members.find(
+				(member) => member.userId === userId
+			);
 
 			let permissions = [];
 			if (userMember) {
 				const role = userMember.teamRole;
-				const rolePermissions = role?.permissions ? JSON.parse(role.permissions) : {};
+				const rolePermissions = role?.permissions
+					? JSON.parse(role.permissions)
+					: {};
 
-				if (role.name === "Admin") {
-					permissions = ["*"];
+				if (role.name === 'Admin') {
+					permissions = ['*'];
 				} else {
-					permissions = Object.keys(rolePermissions).filter(key => rolePermissions[key] === true);
+					permissions = Object.keys(rolePermissions).filter(
+						(key) => rolePermissions[key] === true
+					);
 				}
 			}
 
@@ -52,9 +60,9 @@ export async function GET() {
 				id: team.id,
 				name: team.name,
 				totalMembers: team.members.length,
-				permissions
-			}
-		})
+				permissions,
+			};
+		});
 
 		return NextResponse.json({ teams: teamsToReturn });
 	} catch (err) {

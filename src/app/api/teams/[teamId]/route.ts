@@ -8,29 +8,71 @@ export async function GET(
 ) {
 	const { teamId } = await props.params;
 
+	const supabase = await createClient();
+	const {
+		data: { user },
+		error,
+	} = await supabase.auth.getUser();
+
+	if (!user || error) {
+		return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+	}
+
 	try {
 		const team = await prisma.team.findUnique({
 			where: { id: teamId },
-			include: { members: true },
+			include: {
+				members: {
+					include: { user: true, teamRole: true },
+				},
+				projects: true,
+			},
 		});
 
-		if (!team) {
-			return NextResponse.json({ error: 'Team not found' }, { status: 404 });
+		if (!team)
+			return NextResponse.json(
+				{ error: 'Team not found' },
+				{ status: 404 }
+			);
+
+		const userMember = team.members.find(
+			(member) => member.userId === user.id
+		);
+
+		let permissions: string[] = [];
+		if (userMember) {
+			const role = userMember.teamRole;
+			const rolePermissions = role?.permissions
+				? JSON.parse(role.permissions)
+				: {};
+
+			if (role.name === 'Admin') {
+				permissions = ['*'];
+			} else {
+				permissions = Object.keys(rolePermissions).filter(
+					(key) => rolePermissions[key] === true
+				);
+			}
 		}
 
-		const teamToReturn = {
-			id: team.id,
-			name: team.name,
-			totalMembers: team.members.length
-		};
+		/*
+		const userMember = team.members.find((m) => m.userId === user.id);
+		const permissions =
+			userMember?.teamRole.name === 'Admin'
+				? ['*']
+				: JSON.parse(userMember?.teamRole.permissions || '{}');*/
 
-		// Return team with member count
 		return NextResponse.json({
-			team: teamToReturn
+			team: { ...team, permissions: permissions || [] },
+			members: team.members,
+			projects: team.projects,
 		});
 	} catch (err) {
 		console.error('Error fetching team:', err);
-		return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+		return NextResponse.json(
+			{ error: 'Internal Server Error' },
+			{ status: 500 }
+		);
 	}
 }
 
@@ -85,7 +127,10 @@ export async function PUT(
 		return NextResponse.json(updatedTeam, { status: 200 });
 	} catch (err) {
 		console.error('Error updating team name:', err);
-		return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+		return NextResponse.json(
+			{ error: 'Internal Server Error' },
+			{ status: 500 }
+		);
 	}
 }
 
@@ -124,9 +169,15 @@ export async function DELETE(
 			where: { id: teamId },
 		});
 
-		return NextResponse.json({ message: 'Team deleted successfully' }, { status: 200 });
+		return NextResponse.json(
+			{ message: 'Team deleted successfully' },
+			{ status: 200 }
+		);
 	} catch (err) {
 		console.error('Error deleting team:', err);
-		return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+		return NextResponse.json(
+			{ error: 'Internal Server Error' },
+			{ status: 500 }
+		);
 	}
 }
