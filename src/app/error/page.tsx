@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
-export default function ErrorPage({ error }: { error?: string }) {
+export default function ErrorPage() {
 	const router = useRouter();
 
 	return (
@@ -14,8 +14,7 @@ export default function ErrorPage({ error }: { error?: string }) {
 			<Alert variant="destructive" className="max-w-md text-center">
 				<AlertTitle>Something Went Wrong</AlertTitle>
 				<AlertDescription>
-					{error ||
-						'An unexpected error occurred. Please try again later.'}
+					An unexpected error occurred. Please try again later.
 				</AlertDescription>
 			</Alert>
 
