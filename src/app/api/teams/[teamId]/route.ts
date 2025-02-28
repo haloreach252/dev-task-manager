@@ -76,12 +76,14 @@ export async function GET(
 	}
 }
 
+const editPermissions = ['*', 'editTeam', 'editDescription'];
+
 export async function PUT(
 	request: Request,
 	props: { params: Promise<{ teamId: string }> }
 ) {
 	const { teamId } = await props.params;
-	const { name } = await request.json();
+	const { name, description } = await request.json();
 
 	const supabase = await createClient();
 	const {
@@ -94,34 +96,64 @@ export async function PUT(
 	}
 
 	try {
-		// Check if user is an admin
+		// Fetch user role & permissions
 		const teamMember = await prisma.teamMember.findFirst({
 			where: { teamId, userId: user.id },
 			include: { teamRole: true },
 		});
 
-		if (!teamMember || teamMember.teamRole.name !== 'Admin') {
+		if (!teamMember) {
+			return NextResponse.json(
+				{ error: 'Not a team member' },
+				{ status: 403 }
+			);
+		}
+
+		// Parse permissions
+		let permissions: string[] = [];
+
+		const role = teamMember.teamRole;
+		const rolePermissions = role?.permissions
+			? JSON.parse(role.permissions)
+			: {};
+
+		if (role.name === 'Admin') {
+			permissions = ['*'];
+		} else {
+			permissions = Object.keys(rolePermissions).filter(
+				(key) => rolePermissions[key] === true
+			);
+		}
+
+		const canEdit = permissions.some((r) => editPermissions.includes(r));
+
+		if (!canEdit) {
 			return NextResponse.json(
 				{ error: 'You do not have permission to edit this team.' },
 				{ status: 403 }
 			);
 		}
 
-		// Prevent duplicate team names
-		const existingTeam = await prisma.team.findFirst({
-			where: { name },
-		});
+		if (name) {
+			// Prevent duplicate team names only if `name` is changing
+			const existingTeam = await prisma.team.findFirst({
+				where: { name },
+			});
 
-		if (existingTeam && existingTeam.id !== teamId) {
-			return NextResponse.json(
-				{ error: 'A team with this name already exists.' },
-				{ status: 400 }
-			);
+			if (existingTeam && existingTeam.id !== teamId) {
+				return NextResponse.json(
+					{ error: 'A team with this name already exists.' },
+					{ status: 400 }
+				);
+			}
 		}
 
 		const updatedTeam = await prisma.team.update({
 			where: { id: teamId },
-			data: { name },
+			data: {
+				name: name || undefined,
+				description: description || undefined,
+			},
 		});
 
 		return NextResponse.json(updatedTeam, { status: 200 });

@@ -1,25 +1,26 @@
-// src/app/teams/[teamId]/page.tsx
-
 /* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
-import { Users, FolderKanban, Plus } from 'lucide-react';
+import { Users, FolderKanban, Plus, Pencil, Check, X } from 'lucide-react';
 
 const manageMembersPermissions = ['*', 'manageMembers'];
 const manageProjectsPermissions = ['*', 'manageProjects'];
+const editDescriptionPermissions = ['*', 'editDescription', 'editTeam'];
 
 function checkPermissions(
-	userPermissions: string[] = [],
+	userPermissions: string[],
 	requiredPermissions: string[]
 ) {
 	return userPermissions.some((perm) => requiredPermissions.includes(perm));
@@ -47,33 +48,43 @@ type Project = {
 export default function TeamOverview() {
 	const params = useParams();
 	const teamId = params.teamId as string;
-	const [team, setTeam] = useState<Team | null>(null);
-	const [members, setMembers] = useState<Member[]>([]);
-	const [projects, setProjects] = useState<Project[]>([]);
-	const [isLoading, setIsLoading] = useState(true);
 	const { toast } = useToast();
+	const queryClient = useQueryClient();
+	const [isEditingDescription, setIsEditingDescription] = useState(false);
+	const [updatedDescription, setUpdatedDescription] = useState('');
 
-	useEffect(() => {
-		const fetchTeamData = async () => {
-			try {
-				const res = await axios.get(`/api/teams/${teamId}`);
-				setTeam(res.data.team);
-				setMembers(res.data.members);
-				setProjects(res.data.projects);
-			} catch (err) {
-				console.error(err);
-				toast({
-					title: 'Error',
-					description: 'Failed to fetch team details',
-					variant: 'destructive',
-				});
-			} finally {
-				setIsLoading(false);
-			}
-		};
+	const { data, isLoading, error } = useQuery<{
+		team: Team;
+		members: Member[];
+		projects: Project[];
+	}>({
+		queryKey: ['team', teamId],
+		queryFn: async () => {
+			const res = await axios.get(`/api/teams/${teamId}`);
+			return res.data;
+		},
+	});
 
-		fetchTeamData();
-	}, [teamId, toast]);
+	const updateDescription = useMutation({
+		mutationFn: async (description: string) => {
+			await axios.put(`/api/teams/${teamId}`, { description });
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ['team', teamId] });
+			setIsEditingDescription(false);
+			toast({
+				title: 'Updated',
+				description: 'Team description updated successfully.',
+			});
+		},
+		onError: () => {
+			toast({
+				title: 'Error',
+				description: 'Failed to update description.',
+				variant: 'destructive',
+			});
+		},
+	});
 
 	if (isLoading)
 		return (
@@ -84,7 +95,12 @@ export default function TeamOverview() {
 			</div>
 		);
 
-	if (!team) return <div className="p-8 text-red-500">Team not found.</div>;
+	if (error || !data?.team)
+		return (
+			<div className="p-8 text-red-500">Failed to load team details.</div>
+		);
+
+	const { team, members, projects } = data;
 
 	return (
 		<motion.div
@@ -100,9 +116,56 @@ export default function TeamOverview() {
 				transition={{ duration: 0.5, delay: 0.2 }}
 			>
 				<h1 className="text-3xl font-bold">{team.name} Overview</h1>
-				<p className="text-gray-600">
-					{team.description || 'No description available'}
-				</p>
+				<div className="flex items-center gap-2">
+					{isEditingDescription ? (
+						<>
+							<Input
+								value={updatedDescription}
+								onChange={(e) =>
+									setUpdatedDescription(e.target.value)
+								}
+								className="w-full"
+								autoFocus
+							/>
+							<Button
+								size="icon"
+								variant="ghost"
+								onClick={() =>
+									updateDescription.mutate(updatedDescription)
+								}
+							>
+								<Check className="w-5 h-5 text-green-500" />
+							</Button>
+							<Button
+								size="icon"
+								variant="ghost"
+								onClick={() => setIsEditingDescription(false)}
+							>
+								<X className="w-5 h-5 text-red-500" />
+							</Button>
+						</>
+					) : (
+						<>
+							<p className="text-gray-600">
+								{team.description || 'No description available'}
+							</p>
+							{checkPermissions(
+								team.permissions,
+								editDescriptionPermissions
+							) && (
+								<Button
+									size="icon"
+									variant="ghost"
+									onClick={() =>
+										setIsEditingDescription(true)
+									}
+								>
+									<Pencil className="w-5 h-5 text-gray-500" />
+								</Button>
+							)}
+						</>
+					)}
+				</div>
 			</motion.div>
 
 			{/* Tabs Section */}
@@ -116,26 +179,18 @@ export default function TeamOverview() {
 				<TabsContent value="members">
 					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
 						{members.map((member) => (
-							<motion.div
-								key={member.id}
-								initial={{ opacity: 0, y: 10 }}
-								animate={{ opacity: 1, y: 0 }}
-								transition={{ duration: 0.3 }}
-							>
-								<Card>
-									<CardHeader>
-										<CardTitle>
-											{member.user.name ||
-												member.user.email}
-										</CardTitle>
-									</CardHeader>
-									<CardContent>
-										<p className="text-sm text-gray-600">
-											Role: {member.teamRole.name}
-										</p>
-									</CardContent>
-								</Card>
-							</motion.div>
+							<Card key={member.id}>
+								<CardHeader>
+									<CardTitle>
+										{member.user.name || member.user.email}
+									</CardTitle>
+								</CardHeader>
+								<CardContent>
+									<p className="text-sm text-gray-600">
+										Role: {member.teamRole.name}
+									</p>
+								</CardContent>
+							</Card>
 						))}
 					</div>
 
@@ -158,51 +213,28 @@ export default function TeamOverview() {
 				<TabsContent value="projects">
 					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
 						{projects.map((project) => (
-							<motion.div
-								key={project.id}
-								initial={{ opacity: 0, y: 10 }}
-								animate={{ opacity: 1, y: 0 }}
-								transition={{ duration: 0.3 }}
-							>
-								<Card>
-									<CardHeader>
-										<CardTitle>{project.name}</CardTitle>
-									</CardHeader>
-									<CardContent>
-										<p className="text-sm text-gray-600">
-											{project.description ||
-												'No description available'}
-										</p>
-										<Button
-											className="mt-2 flex items-center gap-2"
-											asChild
-										>
-											<Link
-												href={`/projects/${project.id}`}
-											>
-												<FolderKanban className="w-5 h-5" />{' '}
-												View Project
-											</Link>
-										</Button>
-									</CardContent>
-								</Card>
-							</motion.div>
+							<Card key={project.id}>
+								<CardHeader>
+									<CardTitle>{project.name}</CardTitle>
+								</CardHeader>
+								<CardContent>
+									<p className="text-sm text-gray-600">
+										{project.description ||
+											'No description available'}
+									</p>
+									<Button
+										className="mt-2 flex items-center gap-2"
+										asChild
+									>
+										<Link href={`/projects/${project.id}`}>
+											<FolderKanban className="w-5 h-5" />{' '}
+											View Project
+										</Link>
+									</Button>
+								</CardContent>
+							</Card>
 						))}
 					</div>
-
-					{checkPermissions(
-						team.permissions,
-						manageProjectsPermissions
-					) && (
-						<Button
-							className="mt-4 flex items-center gap-2"
-							asChild
-						>
-							<Link href={`/teams/${teamId}/projects`}>
-								<Plus className="w-5 h-5" /> Manage Projects
-							</Link>
-						</Button>
-					)}
 				</TabsContent>
 			</Tabs>
 		</motion.div>
