@@ -43,7 +43,7 @@ const DraggableKanbanColumn: React.FC<DraggableKanbanColumnProps> = ({
 		useSortable({
 			id: column.id,
 			data: { type: 'column', columnId: column.id, ...column },
-			disabled: isPaletteOpen
+			disabled: isPaletteOpen,
 		});
 
 	const style = {
@@ -65,7 +65,7 @@ const DraggableKanbanColumn: React.FC<DraggableKanbanColumnProps> = ({
 		<Card
 			ref={setNodeRef}
 			style={{ ...style, backgroundColor: bgColor }}
-			className="w-80 rounded shadow"
+			className="w-80 rounded-lg shadow-md h-auto"
 		>
 			<CardHeader className="flex items-center justify-between border-b border-gray-300 pb-2">
 				<div
@@ -74,7 +74,12 @@ const DraggableKanbanColumn: React.FC<DraggableKanbanColumnProps> = ({
 					{...listeners}
 					style={{ cursor: isPaletteOpen ? 'default' : 'grab' }}
 				>
-					<h2 className="text-xl font-bold" style={{ color: titleColor }}>{column.title}</h2>
+					<h2
+						className="text-xl font-bold"
+						style={{ color: titleColor }}
+					>
+						{column.title}
+					</h2>
 					<ColumnActionsPopover
 						columnId={column.id}
 						boardId={column.boardId}
@@ -85,7 +90,7 @@ const DraggableKanbanColumn: React.FC<DraggableKanbanColumnProps> = ({
 					/>
 				</div>
 			</CardHeader>
-			<CardContent className="p-4">
+			<CardContent className="p-4 h-auto">
 				{/* Tasks + "Add Task" button */}
 				<KanbanColumn
 					column={column}

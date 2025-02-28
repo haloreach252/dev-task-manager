@@ -8,6 +8,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { type TaskDetails as Task } from './TaskDetailsDialog';
+import { FileText, Calendar, CheckSquare } from 'lucide-react';
 
 interface KanbanTaskProps {
 	task: Task;
@@ -49,13 +50,18 @@ const KanbanTask: React.FC<KanbanTaskProps> = ({
 				if (!isDragging) onOpenDetails(task);
 			}}
 		>
-			<Card className="shadow-sm">
-				<CardHeader className="pb-2">
+			<Card className="shadow-sm rounded-s-3xl">
+				<CardHeader className="pb-3">
 					<CardTitle className="text-sm font-medium">
 						{task.title}
 					</CardTitle>
 				</CardHeader>
-				<CardContent className="pt-0 text-xs text-muted-foreground">
+				<CardContent className="pt-0 text-xs text-muted-foreground flex gap-2">
+					{task.description && <FileText className="w-4 h-4" />}
+					{task.dueDate && <Calendar className="w-4 h-4" />}
+					{task.checklists.length > 0 && (
+						<CheckSquare className="w-4 h-4" />
+					)}
 					{/* Additional details (description, labels, cover, etc.) can go here. */}
 				</CardContent>
 			</Card>

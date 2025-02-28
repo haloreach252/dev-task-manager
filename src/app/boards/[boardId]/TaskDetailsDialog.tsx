@@ -54,7 +54,7 @@ const TaskDetailsDialog: React.FC<TaskDetailsDialogProps> = ({
 	task,
 	onClose,
 	onSave,
-	boardId
+	boardId,
 }) => {
 	const initialDueDate = task.dueDate
 		? new Date(task.dueDate).toISOString().substring(0, 10)
@@ -71,7 +71,9 @@ const TaskDetailsDialog: React.FC<TaskDetailsDialogProps> = ({
 	);
 	const [labels, setLabels] = useState<Label[]>(task.labels || []);
 	const [hasDueDate, setHasDueDate] = useState(task.dueDate ? true : false);
-	const [hasChecklist, setHasChecklist] = useState(checklists.length ? true : false);
+	const [hasChecklist, setHasChecklist] = useState(
+		checklists.length ? true : false
+	);
 	const [isLabelModalOpen, setIsLabelModalOpen] = useState(false);
 
 	useEffect(() => {
@@ -90,20 +92,20 @@ const TaskDetailsDialog: React.FC<TaskDetailsDialogProps> = ({
 	const handleSelectLabel = async (label: Label) => {
 		await axios.post(`/api/boards/${boardId}/tasks/${task.id}/labels`, {
 			labelId: label.id,
-			action: 'add'
+			action: 'add',
 		});
 
 		setLabels([...labels, label]);
-	}
+	};
 
 	const handleDeselectLabel = async (labelId: string) => {
 		await axios.post(`/api/boards/${boardId}/tasks/${task.id}/labels`, {
 			labelId,
-			action: 'remove'
+			action: 'remove',
 		});
 
 		setLabels(labels.filter((l) => l.id !== labelId));
-	}
+	};
 
 	// Handler to add a new (empty) checklist.
 	const addChecklist = () => {
@@ -259,23 +261,28 @@ const TaskDetailsDialog: React.FC<TaskDetailsDialogProps> = ({
 						className="my-4"
 					/>
 
-					<div className='my-4'>
-						<h3 className='font-bold mb-2'>Labels</h3>
-						{labels.map((label: Label) => (
-							<span
-								key={label.id}
-								className='px-2 py-1 rounded-lg text-sm font-semibold'
-								style={{ backgroundColor: label.backgroundColor }}
-							>
-								{label.name}
-							</span>
-						))}
-						
-					</div>
+					{labels.length > 0 && (
+						<div className="my-4">
+							<h3 className="font-bold mb-2">Labels</h3>
+							{labels.map((label: Label) => (
+								<span
+									key={label.id}
+									className="px-2 py-1 rounded-lg text-sm font-semibold"
+									style={{
+										backgroundColor:
+											label.backgroundColor || '#FFFFFF',
+									}}
+								>
+									{label.name}
+								</span>
+							))}
+						</div>
+					)}
 
 					{/* Due Date */}
-					{hasDueDate && (
+					{dueDate.length > 0 && (
 						<div className="my-4">
+							<h3 className="font-bold mb-2">Due Date</h3>
 							<label className="flex items-center gap-2">
 								<Calendar className="w-5 h-5" />
 								<input
@@ -287,9 +294,9 @@ const TaskDetailsDialog: React.FC<TaskDetailsDialogProps> = ({
 							</label>
 						</div>
 					)}
-					
+
 					{/* Multiple Checklists */}
-					{hasChecklist && (
+					{checklists.length > 0 && (
 						<div className="my-4">
 							<h3 className="font-bold mb-2">Checklists</h3>
 							{checklists.map((cl) => (
@@ -353,13 +360,14 @@ const TaskDetailsDialog: React.FC<TaskDetailsDialogProps> = ({
 								</div>
 							))}
 							<Button variant="outline" onClick={addChecklist}>
-								<Plus className="w-4 h-4 mr-1" /> Add New Checklist
+								<Plus className="w-4 h-4 mr-1" /> Add New
+								Checklist
 							</Button>
 						</div>
 					)}
-					
 
 					{/* Attachments */}
+					{/*
 					<div className="my-4">
 						<h3 className="font-bold mb-2">Attachments</h3>
 						<input
@@ -382,7 +390,7 @@ const TaskDetailsDialog: React.FC<TaskDetailsDialogProps> = ({
 								</li>
 							))}
 						</ul>
-					</div>
+					</div>*/}
 
 					<DialogFooter>
 						<Button onClick={handleSave}>Save</Button>
@@ -401,6 +409,7 @@ const TaskDetailsDialog: React.FC<TaskDetailsDialogProps> = ({
 					<Button variant="outline" onClick={handleAddDueDate}>
 						<Calendar className="w-4 h-4 mr-2" /> Set Due Date
 					</Button>
+					{/*
 					<Button variant="outline">
 						<Paperclip className="w-4 h-4 mr-2" /> Attach File
 					</Button>
@@ -409,7 +418,7 @@ const TaskDetailsDialog: React.FC<TaskDetailsDialogProps> = ({
 					</Button>
 					<Button variant="destructive">
 						<Trash className="w-4 h-4 mr-2" /> Delete Task
-					</Button>
+					</Button>*/}
 				</div>
 			</DialogContent>
 		</Dialog>

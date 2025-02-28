@@ -37,6 +37,7 @@ import { useToast } from '@/hooks/use-toast';
 import DraggableKanbanColumn from './DraggableKanbanColumn';
 import { Column } from './KanbanColumn';
 import TaskDetailsDialog, { TaskDetails } from './TaskDetailsDialog';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // Extend the Prisma Task type to include checklist items
 export type Task = TaskDetails; // TaskDetails = Task & { checklistItems: ChecklistItem[] }
@@ -330,118 +331,152 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 			});
 	};
 
-	if (isLoading) return <div className="p-6">Loading...</div>;
-
 	const columnIds = columns.map((col) => col.id);
 
 	return (
 		<div className="min-h-screen bg-gray-100 p-6">
-			<DndContext
-				onDragStart={handleDragStart}
-				onDragEnd={handleDragEnd}
-				onDragCancel={handleDragCancel}
-				sensors={sensors}
-			>
-				<SortableContext
-					items={columnIds}
-					strategy={horizontalListSortingStrategy}
-				>
-					<div className="flex gap-4">
-						{columns.map((column) => (
-							<DraggableKanbanColumn
-								key={column.id}
-								column={column}
-								onAddTask={(columnId) => {
-									setActiveColumnId(columnId);
-									setIsTaskDialogOpen(true);
-								}}
-								onOpenTask={handleOpenTask}
-							/>
-						))}
-
-						{/* Add Column Button placed to the far right */}
-						<Dialog
-							open={isColumnDialogOpen}
-							onOpenChange={setIsColumnDialogOpen}
+			{isLoading ? (
+				<div className="flex gap-4 items-start">
+					{Array.from({ length: 3 }).map((_, index) => (
+						<div
+							key={index}
+							className="w-80 p-4 bg-white rounded shadow"
 						>
-							<DialogTrigger asChild>
-								<Button
-									variant="ghost"
-									className="h-fit self-start mt-1"
-								>
-									<Plus className="mr-1 w-4 h-4" />
-									Add Column
-								</Button>
-							</DialogTrigger>
-							<DialogContent>
-								<DialogHeader>
-									<DialogTitle>New Column</DialogTitle>
-								</DialogHeader>
-								<Input
-									value={newColumnTitle}
-									onChange={(e) =>
-										setNewColumnTitle(e.target.value)
-									}
-									placeholder="Column title"
+							<Skeleton className="h-6 w-3/4 mb-4" />
+							{Array.from({ length: 4 }).map((_, taskIndex) => (
+								<Skeleton
+									key={taskIndex}
+									className="h-12 w-full mb-2"
 								/>
-								<DialogFooter>
-									<Button
-										onClick={() => createColumn.mutate()}
-									>
-										Create
-									</Button>
-								</DialogFooter>
-							</DialogContent>
-						</Dialog>
-					</div>
-				</SortableContext>
+							))}
+						</div>
+					))}
+				</div>
+			) : (
+				<>
+					<DndContext
+						onDragStart={handleDragStart}
+						onDragEnd={handleDragEnd}
+						onDragCancel={handleDragCancel}
+						sensors={sensors}
+					>
+						<SortableContext
+							items={columnIds}
+							strategy={horizontalListSortingStrategy}
+						>
+							<div className="flex gap-4 items-start">
+								{columns.map((column) => (
+									<DraggableKanbanColumn
+										key={column.id}
+										column={column}
+										onAddTask={(columnId) => {
+											setActiveColumnId(columnId);
+											setIsTaskDialogOpen(true);
+										}}
+										onOpenTask={handleOpenTask}
+									/>
+								))}
 
-				<DragOverlay
-					dropAnimation={{ duration: 250, easing: 'ease-out' }}
-					style={{ zIndex: 1000 }}
-				>
-					{activeDraggable ? (
-						activeDraggable.type === 'task' ? (
-							<div className="w-64 p-2 bg-white shadow rounded cursor-grab">
-								{activeDraggable.title}
+								{/* Add Column Button placed to the far right */}
+								<Dialog
+									open={isColumnDialogOpen}
+									onOpenChange={setIsColumnDialogOpen}
+								>
+									<DialogTrigger asChild>
+										<Button
+											variant="ghost"
+											className="h-fit self-start mt-1"
+										>
+											<Plus className="mr-1 w-4 h-4" />
+											Add Column
+										</Button>
+									</DialogTrigger>
+									<DialogContent>
+										<DialogHeader>
+											<DialogTitle>
+												New Column
+											</DialogTitle>
+										</DialogHeader>
+										<Input
+											value={newColumnTitle}
+											onChange={(e) =>
+												setNewColumnTitle(
+													e.target.value
+												)
+											}
+											placeholder="Column title"
+										/>
+										<DialogFooter>
+											<Button
+												onClick={() =>
+													createColumn.mutate()
+												}
+											>
+												Create
+											</Button>
+										</DialogFooter>
+									</DialogContent>
+								</Dialog>
 							</div>
-						) : activeDraggable.type === 'column' ? (
-							<div className="w-80 bg-gray-50 rounded shadow p-4 cursor-grab">
-								<h2 className="pb-2 mb-2 border-b border-gray-300 text-xl font-bold">
-									{activeDraggable.title}
-								</h2>
-							</div>
-						) : null
-					) : null}
-				</DragOverlay>
-			</DndContext>
+						</SortableContext>
 
-			{/* Add Task Dialog */}
-			<Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>New Task</DialogTitle>
-					</DialogHeader>
-					<Input
-						value={newTaskTitle}
-						onChange={(e) => setNewTaskTitle(e.target.value)}
-						placeholder="Task title"
-					/>
-					<DialogFooter>
-						<Button onClick={() => createTask.mutate()}>
-							Create
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+						<DragOverlay
+							dropAnimation={{
+								duration: 250,
+								easing: 'ease-out',
+							}}
+							style={{ zIndex: 1000 }}
+						>
+							{activeDraggable ? (
+								activeDraggable.type === 'task' ? (
+									<div className="w-64 p-2 bg-white shadow rounded cursor-grab">
+										{activeDraggable.title}
+									</div>
+								) : activeDraggable.type === 'column' ? (
+									<div className="w-80 bg-gray-50 rounded shadow p-4 cursor-grab">
+										<h2 className="pb-2 mb-2 border-b border-gray-300 text-xl font-bold">
+											{activeDraggable.title}
+										</h2>
+									</div>
+								) : null
+							) : null}
+						</DragOverlay>
+					</DndContext>
 
-			{/* Advanced Task Details Dialog */}
-			{selectedTask && (
-				<TaskDetailsDialog
-					task={selectedTask}
-					onClose={() => setSelectedTask(null)}
-					onSave={handleSaveTaskDetails}
-				/>
+					{/* Add Task Dialog */}
+					<Dialog
+						open={isTaskDialogOpen}
+						onOpenChange={setIsTaskDialogOpen}
+					>
+						<DialogContent>
+							<DialogHeader>
+								<DialogTitle>New Task</DialogTitle>
+							</DialogHeader>
+							<Input
+								value={newTaskTitle}
+								onChange={(e) =>
+									setNewTaskTitle(e.target.value)
+								}
+								placeholder="Task title"
+							/>
+							<DialogFooter>
+								<Button onClick={() => createTask.mutate()}>
+									Create
+								</Button>
+							</DialogFooter>
+						</DialogContent>
+					</Dialog>
+
+					{/* Advanced Task Details Dialog */}
+					{selectedTask && (
+						<TaskDetailsDialog
+							boardId={boardId}
+							task={selectedTask}
+							onClose={() => setSelectedTask(null)}
+							onSave={handleSaveTaskDetails}
+						/>
+					)}
+				</>
 			)}
 		</div>
 	);

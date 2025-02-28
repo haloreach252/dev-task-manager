@@ -29,7 +29,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
 	column,
 	onAddTask,
 	onOpenTask,
-	titleColor
+	titleColor,
 }) => {
 	const sortedTasks = [...column.tasks].sort((a, b) => a.order - b.order);
 	const taskIds = sortedTasks.map((task) => task.id);
@@ -37,7 +37,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
 	const isDarkBg = titleColor === '#FFFFFF';
 
 	return (
-		<div className="flex flex-col space-y-4">
+		<div className="flex flex-col space-y-4 h-auto">
 			<SortableContext
 				items={taskIds}
 				strategy={verticalListSortingStrategy}
