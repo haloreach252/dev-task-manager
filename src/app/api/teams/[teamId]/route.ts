@@ -52,24 +52,19 @@ export async function GET(
 			);
 
 		// Parse permissions
-		let permissions: string[] = [];
 		const role = teamMember.teamRole;
 		const rolePermissions = role?.permissions
 			? JSON.parse(role.permissions)
 			: {};
 
-		if (role.name === 'Admin') {
-			permissions = ['*'];
-		} else {
-			permissions = Object.keys(rolePermissions).filter(
-				(key) => rolePermissions[key] === true
-			);
-		}
-
-		console.log(permissions);
+		const permissions: string[] = rolePermissions
+			? Object.keys(rolePermissions).filter(
+					(key) => rolePermissions[key] === true
+			  )
+			: [];
 
 		return NextResponse.json({
-			team: { ...team, permissions },
+			team: { ...team, permissions: permissions || [] },
 			members: team.members,
 			projects: team.projects,
 		});

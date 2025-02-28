@@ -63,7 +63,7 @@ model TeamMember {
   teamId            String
   teamRole          TeamRole @relation(fields: [teamRoleId], references: [id])
   teamRoleId        String
-  customPermissions Json? // Optional custom permissions specific to the user
+  customPermissions String // Optional custom permissions specific to the user
   joinedAt          DateTime @default(now())
 
   @@unique([userId, teamId])
