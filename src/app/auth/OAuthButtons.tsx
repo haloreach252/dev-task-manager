@@ -15,9 +15,8 @@ export default function OAuthButtons({
 }) {
 	const handleOAuthLogin = async (provider: OAuthProvider) => {
 		const url = await loginWithOAuth(provider, redirectPath);
-
 		if (url) {
-			window.location.href = url; // Redirect to oauth provider
+			window.location.href = url;
 		} else {
 			console.error('OAuth login failed.');
 		}
@@ -28,7 +27,7 @@ export default function OAuthButtons({
 			<Button
 				variant="outline"
 				onClick={() => handleOAuthLogin('github')}
-				className="flex items-center justify-center gap-2"
+				className="flex items-center justify-center gap-2 hover:bg-gray-200 dark:hover:bg-gray-800 transition"
 			>
 				<FaGithub size={18} />
 				Continue with GitHub
@@ -37,7 +36,7 @@ export default function OAuthButtons({
 			<Button
 				variant="outline"
 				onClick={() => handleOAuthLogin('discord')}
-				className="flex items-center justify-center gap-2"
+				className="flex items-center justify-center gap-2 hover:bg-gray-200 dark:hover:bg-gray-800 transition"
 			>
 				<FaDiscord size={18} />
 				Continue with Discord
