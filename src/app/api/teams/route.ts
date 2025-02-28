@@ -17,15 +17,27 @@ export async function GET() {
 	try {
 		const userId = user.id;
 
+		// Fetch teams where the user is a member and count the total members
 		const teams = await prisma.team.findMany({
 			where: {
 				members: { some: { userId } },
 			},
+			include: {
+				members: true, // Fetch members to count total members
+			},
+			orderBy: { name: 'asc' }, // Sort alphabetically
 		});
 
-		return NextResponse.json({ teams });
+		// Return teams with member count
+		const teamsWithMemberCount = teams.map(team => ({
+			id: team.id,
+			name: team.name,
+			totalMembers: team.members.length,
+		}));
+
+		return NextResponse.json({ teams: teamsWithMemberCount });
 	} catch (err) {
-		console.error('Error fetching teams: ', err);
+		console.error('Error fetching teams:', err);
 		return NextResponse.json(
 			{ error: 'Internal Server Error' },
 			{ status: 500 }
@@ -52,6 +64,18 @@ export async function POST(request: Request) {
 	try {
 		const { name } = await request.json();
 		const userId = user.id;
+
+		// Prevent duplicate team names
+		const existingTeam = await prisma.team.findFirst({
+			where: { name },
+		});
+
+		if (existingTeam) {
+			return NextResponse.json(
+				{ error: 'A team with this name already exists.' },
+				{ status: 400 }
+			);
+		}
 
 		// Create the team and a default "Admin" role for the team
 		const team = await prisma.team.create({
@@ -84,9 +108,17 @@ export async function POST(request: Request) {
 			},
 		});
 
-		return NextResponse.json(team, { status: 201 });
+		// Return team with member count
+		return NextResponse.json(
+			{
+				id: team.id,
+				name: team.name,
+				totalMembers: 1, // Since the creator is the first member
+			},
+			{ status: 201 }
+		);
 	} catch (err) {
-		console.error('Error creating team: ', err);
+		console.error('Error creating team:', err);
 		return NextResponse.json(
 			{ error: 'Internal Server Error' },
 			{ status: 500 }
