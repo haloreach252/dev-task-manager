@@ -1,3 +1,5 @@
+// src/app/api/projects/route.ts
+
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase";
 import prisma from "@/lib/prisma";
@@ -23,14 +25,43 @@ export async function GET() {
                 }
             },
             include: {
-                team: true
+                team: true,
+                boards: {
+                    include: {
+                        columns: {
+                            include: {
+                                tasks: true
+                            }
+                        }
+                    }
+                }
             },
             orderBy: {
                 updatedAt: 'desc'
             }
         });
 
-        return NextResponse.json({ projects });
+        // Map through projects to calculate totalBoards & totalTasks
+        const projectsWithCounts = projects.map(project => {
+            const totalBoards = project.boards.length;
+            const totalTasks = project.boards.reduce((taskCount, board) => {
+                return taskCount + board.columns.reduce((colCount, column) => colCount + column.tasks.length, 0);
+            }, 0);
+
+            return {
+                id: project.id,
+                name: project.name,
+                description: project.description,
+                team: {
+                    name: project.team.name
+                },
+                updatedAt: project.updatedAt,
+                totalBoards,
+                totalTasks
+            };
+        });
+
+        return NextResponse.json({ projects: projectsWithCounts });
     } catch (err) {
         console.error("Error fetching projects:", err);
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
