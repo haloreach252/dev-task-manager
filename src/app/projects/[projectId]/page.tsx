@@ -1,5 +1,6 @@
 // src/app/projects/[projectId]/page.tsx
 
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 import { useState } from 'react';
@@ -7,49 +8,53 @@ import { useRouter, useParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogFooter,
+  } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
-import { Plus, Eye, Users, Lock, RefreshCcw, ListChecks } from 'lucide-react';
+import { Plus, Eye, Users, Lock, RefreshCcw, ListChecks, SortAsc, SortDesc } from 'lucide-react';
+
+const sortingOptions = [
+  { label: 'Most Tasks', value: 'mostTasks' },
+  { label: 'Alphabetical', value: 'alphabetical' },
+  { label: 'Recently Updated', value: 'recentlyUpdated' },
+];
 
 type Board = {
   id: string;
   name: string;
   visibility: 'PUBLIC' | 'TEAM' | 'PRIVATE';
   totalTasks: number;
+  updatedAt: string;
 };
 
 export default function ProjectBoardsPage() {
   const router = useRouter();
-  const { projectId } = useParams(); // ✅ useParams hook
+  const { projectId } = useParams();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [sorting, setSorting] = useState('mostTasks');
+  const [editingBoardId, setEditingBoardId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newBoardName, setNewBoardName] = useState('');
   const [visibility, setVisibility] = useState<'PUBLIC' | 'TEAM' | 'PRIVATE'>(
     'PRIVATE'
   );
 
-  // Fetch Boards using React Query
-  const {
-    data: boards,
-    isLoading,
-    error,
-    refetch,
-  } = useQuery<Board[]>({
+  const { data: boards, isLoading, error, refetch } = useQuery<Board[]>({
     queryKey: ['boards', projectId],
     queryFn: async () => {
       const res = await axios.get(`/api/projects/${projectId}/boards`);
-      return res.data;
+      return res.data.boards;
     },
   });
 
@@ -80,61 +85,100 @@ export default function ProjectBoardsPage() {
     },
   });
 
+  const updateBoardName = useMutation({
+    mutationFn: async ({ boardId, name }: { boardId: string; name: string }) => {
+      await axios.put(`/api/projects/${projectId}/boards/${boardId}`, { name });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['boards', projectId] });
+      setEditingBoardId(null);
+      toast({ title: 'Board Updated', description: 'Board name updated successfully.' });
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'Failed to update board name.', variant: 'destructive' });
+    },
+  });
+
+  const handleEdit = (board: Board) => {
+    setEditingBoardId(board.id);
+    setEditingName(board.name);
+  };
+
+  const handleSave = (boardId: string) => {
+    if (editingName.trim() && editingName !== boards?.find(b => b.id === boardId)?.name) {
+      updateBoardName.mutate({ boardId, name: editingName });
+    } else {
+      setEditingBoardId(null);
+    }
+  };
+
+  const sortedBoards = boards?.slice().sort((a, b) => {
+    if (sorting === 'mostTasks') return b.totalTasks - a.totalTasks;
+    if (sorting === 'alphabetical') return a.name.localeCompare(b.name);
+    if (sorting === 'recentlyUpdated') return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+    return 0;
+  });
+
   return (
     <div className="p-8 space-y-8">
       {/* Header */}
-      <Card className="p-6 flex justify-between items-center">
-        <h1 className="text-3xl font-bold">
-          Project Boards {boards ? `(${boards.length})` : ''}
-        </h1>
-        <Button onClick={() => setIsDialogOpen(true)}>
-          <Plus className="w-5 h-5 mr-2" /> Create New Board
-        </Button>
-      </Card>
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold">Project Boards</h1>
+        <div className="flex gap-4">
+          <select
+            className="p-2 border rounded"
+            value={sorting}
+            onChange={(e) => setSorting(e.target.value)}
+          >
+            {sortingOptions.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+          <Button onClick={() => setIsDialogOpen(true)}>
+            <Plus className="w-5 h-5 mr-2" /> Create New Board
+          </Button>
+        </div>
+      </div>
 
       {/* Boards Grid */}
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[...Array(6)].map((_, i) => (
-            <Skeleton key={i} className="h-32 rounded-lg" />
-          ))}
+          {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-32 rounded-lg" />)}
         </div>
       ) : error ? (
-        <div className="flex flex-col items-center space-y-4">
-          <p className="text-red-500">Failed to load boards.</p>
-          <Button variant="outline" onClick={() => refetch()}>
-            <RefreshCcw className="w-5 h-5 mr-2" />
-            Retry
-          </Button>
-        </div>
-      ) : boards?.length ? (
+        <div className="text-center text-red-500">Failed to load boards.</div>
+      ) : sortedBoards?.length ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {boards.map((board) => (
-            <motion.div
-              key={board.id}
-              initial={{ opacity: 0, y: 10 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.3 }}
-            >
-              <Card
-                className="hover:shadow-lg cursor-pointer transition-transform transform hover:scale-[1.02]"
-                onClick={() => router.push(`/boards/${board.id}`)}
-              >
+          {sortedBoards.map((board) => (
+            <motion.div key={board.id} initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }}>
+              <Card className="hover:shadow-lg cursor-pointer transition-transform hover:scale-105">
                 <CardHeader>
-                  <CardTitle className="flex justify-between items-center">
-                    {board.name}
-                    {board.visibility === 'PUBLIC' ? (
-                      <Eye className="w-5 h-5 text-green-500" />
-                    ) : board.visibility === 'TEAM' ? (
-                      <Users className="w-5 h-5 text-blue-500" />
-                    ) : (
-                      <Lock className="w-5 h-5 text-red-500" />
-                    )}
-                  </CardTitle>
+                  {editingBoardId === board.id ? (
+                    <Input
+                      value={editingName}
+                      onChange={(e) => setEditingName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleSave(board.id);
+                        if (e.key === 'Escape') setEditingBoardId(null);
+                      }}
+                      autoFocus
+                      onBlur={() => handleSave(board.id)}
+                    />
+                  ) : (
+                    <CardTitle className="flex justify-between items-center" onClick={() => handleEdit(board)}>
+                      {board.name}
+                      {board.visibility === 'PUBLIC' ? (
+                        <Eye className="w-5 h-5 text-green-500" />
+                      ) : board.visibility === 'TEAM' ? (
+                        <Users className="w-5 h-5 text-blue-500" />
+                      ) : (
+                        <Lock className="w-5 h-5 text-red-500" />
+                      )}
+                    </CardTitle>
+                  )}
                 </CardHeader>
                 <CardContent>
-                  <div className="mt-2 flex justify-between items-center text-sm text-gray-700 dark:text-gray-300">
+                  <div className="flex justify-between items-center text-sm text-gray-700">
                     <div className="flex items-center gap-2">
                       <ListChecks className="w-4 h-4 text-indigo-600" />
                       <span>{board.totalTasks} Tasks</span>
@@ -146,12 +190,10 @@ export default function ProjectBoardsPage() {
           ))}
         </div>
       ) : (
-        <div className="text-center text-gray-600 dark:text-gray-300">
-          <p>No boards found. Start by creating one!</p>
-        </div>
+        <div className="text-center text-gray-600">No boards found. Start by creating one!</div>
       )}
 
-      {/* Create Board Dialog */}
+	  {/* Create Board Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>
