@@ -1,12 +1,12 @@
-# **🔹 Miniverse Dev Task Manager - Style & Theme Guide**
+# **🔹 Miniverse Project Manager - Style & Theme Guide**
 
-This document serves as a **comprehensive design guide** for Miniverse Dev Task Manager. It defines the **UI/UX philosophy, design patterns, and component usage** to ensure consistency across all pages. This will allow us to seamlessly continue development, even in a new chat.
+This document serves as a **comprehensive design guide** for Miniverse Project Manager. It defines the **UI/UX philosophy, design patterns, and component usage** to ensure consistency across all pages.
 
 ---
 
 ## **🎨 Core Design Principles**
 
-Miniverse Dev Task Manager follows these **key design principles**:
+Miniverse Project Manager follows these **key design principles**:
 
 ✅ **Minimalist & Developer-Friendly** – Clean UI with minimal distractions.  
 ✅ **Dark Mode First** – Designed with a sleek dark theme, but supports light mode.  
@@ -203,7 +203,7 @@ function checkPermissions(
 
 ## **🚀 Summary**
 
-Miniverse Dev Task Manager is built with:
+Miniverse Project Manager is built with:
 
 -   **Dark Mode First** 🌑 (Light Mode Supported)
 -   **ShadCN + TailwindCSS + Radix UI**
@@ -222,5 +222,3 @@ Following this guide, any new pages will:
 -   Follow **RBAC permissions** to allow/disallow actions.
 -   Include **sorting, filtering, and animations** for better UX.
 -   Handle **empty states gracefully**.
-
-This guide should be enough to **continue development in any new chat** without losing the core vision. Let me know if you need any refinements! 🚀😊
