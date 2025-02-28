@@ -48,7 +48,7 @@ model TeamRole {
   id          String @id @default(uuid())
   name        String // e.g. "Admin", "Editor", "Viewer" or custom role name
   permissions String // JSON string to convert from
-  team        Team   @relation(fields: [teamId], references: [id])
+  team        Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
   teamId      String
 
   // Inverse relation to members using this role
@@ -59,7 +59,7 @@ model TeamMember {
   id                String   @id @default(uuid())
   user              User     @relation(fields: [userId], references: [id])
   userId            String
-  team              Team     @relation(fields: [teamId], references: [id])
+  team              Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
   teamId            String
   teamRole          TeamRole @relation(fields: [teamRoleId], references: [id])
   teamRoleId        String
@@ -78,7 +78,7 @@ model Invite {
   createdAt DateTime  @default(now())
   expiresAt DateTime?
 
-  team   Team   @relation(fields: [teamId], references: [id])
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
   teamId String
 }
 
@@ -89,7 +89,7 @@ model Project {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  team   Team    @relation(fields: [teamId], references: [id])
+  team   Team    @relation(fields: [teamId], references: [id], onDelete: Cascade)
   teamId String
   boards Board[]
 }
@@ -104,7 +104,7 @@ model Board {
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
-  project    Project             @relation(fields: [projectId], references: [id])
+  project    Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
   projectId  String
   columns    Column[]
   priorities BoardTaskPriority[]
@@ -122,7 +122,7 @@ model Column {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  board   Board  @relation(fields: [boardId], references: [id])
+  board   Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
   boardId String
   tasks   Task[]
 }
@@ -131,7 +131,7 @@ model BoardTaskPriority {
   id      String @id @default(uuid())
   name    String // e.g. "High", "Medium", "Low", or custom
   order   Int // Determines sort order for display
-  board   Board  @relation(fields: [boardId], references: [id])
+  board   Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
   boardId String
 
   tasks Task[] // Tasks that use this priority
@@ -150,7 +150,7 @@ model Task {
   updatedAt     DateTime  @updatedAt
 
   // Task belongs to a column (and thereby a board)
-  column   Column @relation(fields: [columnId], references: [id])
+  column   Column @relation(fields: [columnId], references: [id], onDelete: Cascade)
   columnId String
 
   // Optional priority defined per board
@@ -176,7 +176,7 @@ model Checklist {
   updatedAt DateTime @updatedAt
 
   // Each checklist belongs to a task
-  task   Task   @relation(fields: [taskId], references: [id])
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
   taskId String
 
   // Checklist items under this checklist
@@ -191,16 +191,16 @@ model ChecklistItem {
   updatedAt DateTime @updatedAt
 
   // Each checklist item belongs to a checklist
-  checklist   Checklist @relation(fields: [checklistId], references: [id])
+  checklist   Checklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
   checklistId String
 
   @@index([checklistId])
 }
 
 model TaskLabel {
-  task    Task   @relation(fields: [taskId], references: [id])
+  task    Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
   taskId  String
-  label   Label  @relation(fields: [labelId], references: [id])
+  label   Label  @relation(fields: [labelId], references: [id], onDelete: Cascade)
   labelId String
 
   @@id([taskId, labelId])
@@ -213,7 +213,7 @@ model Label {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  board   Board       @relation(fields: [boardId], references: [id])
+  board   Board       @relation(fields: [boardId], references: [id], onDelete: Cascade)
   boardId String
   tasks   TaskLabel[]
 }
@@ -223,11 +223,11 @@ model TaskDependency {
   createdAt DateTime @default(now())
 
   // The task that depends on another
-  task   Task   @relation("TaskDependencies", fields: [taskId], references: [id])
+  task   Task   @relation("TaskDependencies", fields: [taskId], references: [id], onDelete: Cascade)
   taskId String
 
   // The task being depended upon
-  dependsOn   Task   @relation("TaskDependents", fields: [dependsOnId], references: [id])
+  dependsOn   Task   @relation("TaskDependents", fields: [dependsOnId], references: [id], onDelete: Cascade)
   dependsOnId String
 
   @@unique([taskId, dependsOnId])
@@ -238,7 +238,7 @@ model Comment {
   content   String
   createdAt DateTime @default(now())
 
-  task     Task   @relation(fields: [taskId], references: [id])
+  task     Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
   taskId   String
   author   User   @relation(fields: [authorId], references: [id])
   authorId String
@@ -249,11 +249,11 @@ model TaskHistory {
   change    String // A description or JSON of the change
   createdAt DateTime @default(now())
 
-  task   Task   @relation(fields: [taskId], references: [id])
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
   taskId String
 
   // Storing history at the board level for visibility
-  board   Board  @relation(fields: [boardId], references: [id])
+  board   Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
   boardId String
 
   author   User?   @relation(fields: [authorId], references: [id])
@@ -268,7 +268,7 @@ model FileAttachment {
   fileSize  Int?
   createdAt DateTime @default(now())
 
-  task   Task   @relation(fields: [taskId], references: [id])
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
   taskId String
 
   uploadedBy   User?   @relation("UserFileAttachments", fields: [uploadedById], references: [id])
@@ -282,6 +282,6 @@ model Integration {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  team   Team   @relation(fields: [teamId], references: [id])
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
   teamId String
 }
