@@ -1,9 +1,7 @@
-// src/app/teams/[teamId]/management/page.tsx
-
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,6 +15,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import InviteDialog from './InviteDialog';
 import { type TeamMember } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type TeamRole = {
 	id: string;
@@ -26,79 +25,146 @@ type TeamRole = {
 type Team = {
 	id: string;
 	name: string;
+	permissions: string[];
 };
 
 export default function TeamManagement() {
 	const params = useParams();
 	const teamId = params.teamId as string;
-	const [members, setMembers] = useState<TeamMember[]>([]);
-	const [roles, setRoles] = useState<TeamRole[]>([]);
-	const [team, setTeam] = useState<Team>();
 	const { toast } = useToast();
+	const queryClient = useQueryClient();
 
-	useEffect(() => {
-		axios
-			.get(`/api/teams/${teamId}`)
-			.then((res) => setTeam(res.data.team))
-			.catch((err) => console.error('Failed to fetch team: ', err));
+	// Fetch team data
+	const {
+		data: team,
+		isLoading: teamLoading,
+		isError: teamError,
+	} = useQuery({
+		queryKey: ['team', teamId],
+		queryFn: async () => {
+			const res = await axios.get(`/api/teams/${teamId}`);
+			return res.data.team as Team;
+		},
+	});
 
-		axios
-			.get(`/api/teams/${teamId}/members`)
-			.then((res) => setMembers(res.data.members))
-			.catch((err) => console.error('Failed to fetch members:', err));
+	// Fetch members
+	const {
+		data: members,
+		isLoading: membersLoading,
+		isError: membersError,
+	} = useQuery({
+		queryKey: ['teamMembers', teamId],
+		queryFn: async () => {
+			const res = await axios.get(`/api/teams/${teamId}/members`);
+			return res.data.members as TeamMember[];
+		},
+	});
 
-		axios
-			.get(`/api/teams/${teamId}/roles`)
-			.then((res) => setRoles(res.data.roles))
-			.catch((err) => console.error('Failed to fetch team roles: ', err));
-	}, [teamId]);
+	// Fetch roles
+	const {
+		data: roles,
+		isLoading: rolesLoading,
+		isError: rolesError = false, // Prevents undefined variable error
+	} = useQuery({
+		queryKey: ['teamRoles', teamId],
+		queryFn: async () => {
+			const res = await axios.get(`/api/teams/${teamId}/roles`);
+			return res.data.roles as TeamRole[];
+		},
+	});
 
-	const handleRoleChange = async (memberId: string, newRoleId: string) => {
-		try {
+	// Mutation for updating member roles
+	const roleMutation = useMutation({
+		mutationFn: async ({
+			memberId,
+			roleId,
+		}: {
+			memberId: string;
+			roleId: string;
+		}) => {
 			await axios.patch(`/api/teams/${teamId}/members`, {
 				memberId,
-				roleId: newRoleId,
+				teamRoleId: roleId,
 			});
-
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: ['teamMembers', teamId],
+			});
 			toast({
 				title: 'Role Updated',
 				description: 'Member role has been updated',
 			});
-
-			// Refresh members list
-			const res = await axios.get(`/api/teams/${teamId}/members`);
-			setMembers(res.data.members);
-		} catch (error) {
-			console.error(error);
+		},
+		onError: () => {
 			toast({
 				title: 'Error',
 				description: 'Failed to update role.',
 				variant: 'destructive',
 			});
-		}
-	};
+		},
+	});
 
-	const handleRemoveMember = async (memberId: string) => {
-		try {
+	// Mutation for removing a member
+	const removeMutation = useMutation({
+		mutationFn: async (memberId: string) => {
 			await axios.delete(`/api/teams/${teamId}/members`, {
 				data: { memberId },
 			});
-
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: ['teamMembers', teamId],
+			});
 			toast({
 				title: 'Member Removed',
 				description: 'The member has been removed from the team.',
 			});
-
-			setMembers(members.filter((member) => member.id !== memberId));
-		} catch (error) {
-			console.error(error);
+		},
+		onError: () => {
 			toast({
 				title: 'Error',
 				description: 'Failed to remove member.',
 				variant: 'destructive',
 			});
-		}
+		},
+	});
+
+	// Function to update members after an invite
+	const updateMembers = async () => {
+		queryClient.invalidateQueries({
+			queryKey: ['teamMembers', teamId],
+		});
 	};
+
+	// Check if user has permission to manage the team
+	const canManageTeam =
+		team?.permissions?.includes('*') ||
+		team?.permissions?.includes('manageTeam');
+
+	if (teamLoading || membersLoading || rolesLoading) {
+		return (
+			<div className="p-8">
+				<h1 className="text-3xl font-bold mb-6">Team Management</h1>
+				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+					{[...Array(3)].map((_, i) => (
+						<Skeleton key={i} className="h-24 w-full bg-gray-700" />
+					))}
+				</div>
+			</div>
+		);
+	}
+
+	if (teamError || membersError || rolesError) {
+		return (
+			<div className="p-8">
+				<h1 className="text-3xl font-bold mb-6">Team Management</h1>
+				<p className="text-red-500">
+					Failed to load team data. Please try again.
+				</p>
+			</div>
+		);
+	}
 
 	return (
 		<div className="p-8">
@@ -108,7 +174,7 @@ export default function TeamManagement() {
 
 			{/* Members List */}
 			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-				{members.map((member) => (
+				{members?.map((member) => (
 					<Card key={member.id}>
 						<CardHeader>
 							<CardTitle>
@@ -120,43 +186,54 @@ export default function TeamManagement() {
 								Email: {member.user.email}
 							</p>
 
-							{/* Role Selector */}
-							<Select
-								value={member.teamRole.id}
-								onValueChange={(newRoleId) =>
-									handleRoleChange(member.id, newRoleId)
-								}
-							>
-								<SelectTrigger>
-									<SelectValue placeholder="Select Role" />
-								</SelectTrigger>
-								<SelectContent>
-									{roles.map((role) => (
-										<SelectItem
-											key={role.id}
-											value={role.id}
-										>
-											{role.name}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
+							{/* Role Selector - Only show if user can manage team */}
+							{canManageTeam && (
+								<Select
+									value={member.teamRole.id}
+									onValueChange={(newRoleId) =>
+										roleMutation.mutate({
+											memberId: member.id,
+											roleId: newRoleId,
+										})
+									}
+								>
+									<SelectTrigger>
+										<SelectValue placeholder="Select Role" />
+									</SelectTrigger>
+									<SelectContent>
+										{roles?.map((role) => (
+											<SelectItem
+												key={role.id}
+												value={role.id}
+											>
+												{role.name}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							)}
 
-							{/* Remove Member Button */}
-							<Button
-								variant="destructive"
-								className="mt-4"
-								onClick={() => handleRemoveMember(member.id)}
-							>
-								Remove Member
-							</Button>
+							{/* Remove Member Button - Only show if user can manage team */}
+							{canManageTeam && (
+								<Button
+									variant="destructive"
+									className="mt-4"
+									onClick={() =>
+										removeMutation.mutate(member.id)
+									}
+								>
+									Remove Member
+								</Button>
+							)}
 						</CardContent>
 					</Card>
 				))}
 			</div>
 
-			{/* Invite Dialog */}
-			<InviteDialog teamId={teamId} setMembers={setMembers} />
+			{/* Invite Dialog - Only show if user can manage team */}
+			{canManageTeam && (
+				<InviteDialog teamId={teamId} setMembers={updateMembers} />
+			)}
 		</div>
 	);
 }

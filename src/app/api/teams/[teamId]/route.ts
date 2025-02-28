@@ -21,6 +21,20 @@ export async function GET(
 	}
 
 	try {
+		// Check if the user is a member of the team
+		const teamMember = await prisma.teamMember.findFirst({
+			where: { teamId, userId: user.id },
+			include: { teamRole: true },
+		});
+
+		if (!teamMember) {
+			return NextResponse.json(
+				{ error: 'Forbidden: You are not a member of this team' },
+				{ status: 403 }
+			);
+		}
+
+		// Fetch team details
 		const team = await prisma.team.findUnique({
 			where: { id: teamId },
 			include: {
@@ -37,28 +51,23 @@ export async function GET(
 				{ status: 404 }
 			);
 
-		const userMember = team.members.find(
-			(member) => member.userId === user.id
-		);
-
+		// Parse permissions
 		let permissions: string[] = [];
-		if (userMember) {
-			const role = userMember.teamRole;
-			const rolePermissions = role?.permissions
-				? JSON.parse(role.permissions)
-				: {};
+		const role = teamMember.teamRole;
+		const rolePermissions = role?.permissions
+			? JSON.parse(role.permissions)
+			: {};
 
-			if (role.name === 'Admin') {
-				permissions = ['*'];
-			} else {
-				permissions = Object.keys(rolePermissions).filter(
-					(key) => rolePermissions[key] === true
-				);
-			}
+		if (role.name === 'Admin') {
+			permissions = ['*'];
+		} else {
+			permissions = Object.keys(rolePermissions).filter(
+				(key) => rolePermissions[key] === true
+			);
 		}
 
 		return NextResponse.json({
-			team: { ...team, permissions: permissions || [] },
+			team: { ...team, permissions },
 			members: team.members,
 			projects: team.projects,
 		});

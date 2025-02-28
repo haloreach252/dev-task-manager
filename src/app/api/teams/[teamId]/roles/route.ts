@@ -15,34 +15,26 @@ export async function GET(
 	} = await supabase.auth.getUser();
 
 	if (!user || error) {
-		console.log(error ? error : 'No user found on teams page');
 		return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
-	const params = await props.params;
-	const teamId = params.teamId;
+	const { teamId } = await props.params;
 
 	try {
-		const userId = user.id;
-
-		const team = await prisma.team.findUnique({
-			where: {
-				members: { some: { userId } },
-				id: teamId,
-			},
+		// Check if user is a member of the team
+		const teamMember = await prisma.teamMember.findFirst({
+			where: { teamId, userId: user.id },
 		});
 
-		if (!team) {
+		if (!teamMember) {
 			return NextResponse.json(
-				{ error: 'Unable to find team' },
-				{ status: 400 }
+				{ error: 'Forbidden: You are not a team member' },
+				{ status: 403 }
 			);
 		}
 
 		const roles = await prisma.teamRole.findMany({
-			where: {
-				teamId,
-			},
+			where: { teamId },
 		});
 
 		return NextResponse.json({ roles });
