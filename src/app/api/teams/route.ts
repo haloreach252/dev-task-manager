@@ -59,6 +59,7 @@ export async function GET() {
 			return {
 				id: team.id,
 				name: team.name,
+				description: team.description,
 				totalMembers: team.members.length,
 				permissions,
 			};
@@ -136,7 +137,7 @@ export async function POST(request: Request) {
 				teamId: team.id,
 				userId,
 				teamRoleId: adminRole?.id || '',
-				customPermissions: {},
+				customPermissions: JSON.stringify({ '*': true }),
 			},
 		});
 

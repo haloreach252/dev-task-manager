@@ -26,6 +26,7 @@ type Team = {
 	id: string;
 	name: string;
 	permissions: string[];
+	canManageTeam: boolean;
 };
 
 export default function TeamManagement() {
@@ -137,11 +138,6 @@ export default function TeamManagement() {
 		});
 	};
 
-	// Check if user has permission to manage the team
-	const canManageTeam =
-		team?.permissions.includes('*') ||
-		team?.permissions.includes('manageTeam');
-
 	if (teamLoading || membersLoading || rolesLoading) {
 		return (
 			<div className="p-8">
@@ -165,6 +161,10 @@ export default function TeamManagement() {
 			</div>
 		);
 	}
+
+	const canManageTeam =
+		team?.permissions?.includes('*') ||
+		team?.permissions?.includes('manageMembers');
 
 	return (
 		<div className="p-8">

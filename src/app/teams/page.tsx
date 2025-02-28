@@ -28,6 +28,7 @@ import {
 	Check,
 	X,
 	Loader,
+	ArrowBigRightDash,
 } from 'lucide-react';
 import DeleteTeamDialog from './DeleteTeamDialog';
 import { useRouter } from 'next/navigation';
@@ -35,6 +36,7 @@ import { useRouter } from 'next/navigation';
 type Team = {
 	id: string;
 	name: string;
+	description: string;
 	totalMembers: number;
 	permissions: string[];
 };
@@ -204,7 +206,7 @@ export default function TeamsDashboard() {
 							whileHover={{ scale: 1.02 }}
 							transition={{ duration: 0.2 }}
 						>
-							<Card className="hover:shadow-lg transition-transform cursor-pointer">
+							<Card className="hover:shadow-lg transition-transform">
 								<CardHeader className="flex justify-between items-center">
 									{editingTeamId === team.id ? (
 										<Input
@@ -252,35 +254,51 @@ export default function TeamsDashboard() {
 													<Pencil className="w-4 h-4 text-gray-500" />
 												</Button>
 											)}
+											{checkPermissions(
+												team.permissions,
+												deletePermissions
+											) && (
+												<Button
+													size="icon"
+													variant="ghost"
+													onClick={() =>
+														deleteTeam.mutate(
+															team.id
+														)
+													}
+												>
+													<Trash className="w-4 h-4 text-red-500" />
+												</Button>
+											)}
 										</CardTitle>
 									)}
 								</CardHeader>
-								<CardContent
-									onClick={() =>
-										router.push(`/teams/${team.id}`)
-									}
-								>
-									<div className="flex justify-between items-center text-sm text-gray-700">
-										<div className="flex items-center gap-2">
-											<Users className="w-4 h-4 text-indigo-600" />
-											<span>
-												{team.totalMembers} Members
-											</span>
-										</div>
-										{checkPermissions(
-											team.permissions,
-											deletePermissions
-										) && (
+								<CardContent>
+									<div className="flex flex-col">
+										{team.description}
+										<div
+											className={`flex justify-between items-center text-sm text-gray-700 ${
+												team.description ? 'mt-4' : ''
+											}`}
+										>
+											<div className="flex items-center gap-2">
+												<Users className="w-4 h-4 text-indigo-600" />
+												<span>
+													{team.totalMembers} Members
+												</span>
+											</div>
 											<Button
-												size="icon"
-												variant="ghost"
+												className="flex items-center gap-2"
 												onClick={() =>
-													deleteTeam.mutate(team.id)
+													router.push(
+														`/teams/${team.id}`
+													)
 												}
 											>
-												<Trash className="w-4 h-4 text-red-500" />
+												Go to Team
+												<ArrowBigRightDash className="w-4 h-4" />
 											</Button>
-										)}
+										</div>
 									</div>
 								</CardContent>
 							</Card>
