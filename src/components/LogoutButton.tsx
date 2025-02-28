@@ -1,17 +1,19 @@
-"use client"
+// src/components/LogoutButton.tsx
 
-import { createClient } from "@/lib/supabaseClient"
+'use client';
+
+import { createClient } from '@/lib/supabaseClient';
 
 export default function LogoutButton() {
-    const handleLogout = async () => {
-        const supabase = createClient();
-        await supabase.auth.signOut();
-        window.location.reload();
-    }
+	const handleLogout = async () => {
+		const supabase = createClient();
+		await supabase.auth.signOut();
+		window.location.reload();
+	};
 
-    return (
-        <button onClick={handleLogout} className="hover:underline">
-            Logout
-        </button>
-    )
+	return (
+		<button onClick={handleLogout} className="hover:underline">
+			Logout
+		</button>
+	);
 }
