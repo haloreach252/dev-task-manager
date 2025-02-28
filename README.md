@@ -1,48 +1,142 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Dev Task Manager
 
-## Getting Started
+## Overview
 
-First, run the development server:
+The **Dev Task Manager** is a powerful and easy-to-use project management tool designed for developers and general project management. Unlike other tools that require multiple apps to manage different aspects of a project, this tool consolidates various project management functionalities into a single app. It is built to accommodate **solo users, teams, and enterprises** alike.
 
-```bash
-npm run dev
-```
+### Key Highlights:
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+-   All-in-one project management tool: **Kanban boards, whiteboards, and more** in a single app.
+-   Designed for **developers**, but flexible enough for general use.
+-   **Team management system** with role-based permissions.
+-   **Authentication** via email/password, GitHub, and Discord (more OAuth providers planned).
+-   **Future integrations planned** for GitHub, Google Docs, and Discord.
+-   Built using **Next.js, React, TailwindCSS, ShadCN, and Supabase**.
 
-# Project layout
+🚧 **This project is currently in heavy development.** A live demo is not yet available.
 
-## Project Requirements
+---
 
-This project uses Supabase auth, storage, and realtime specifically. The database used CAN be a self-hosted one
-but should still be a PostgreSQL database.
+## Features
 
-## .env
+For a detailed breakdown of the planned features, see the **[Feature Documentation](./notes/feature_doc.md)**.
 
-The .env.example file has the .env keys you'll need to setup the project locally
+### 🔐 **Authentication & Access Control**
 
-If using Supabase, the various urls and keys can be found in your dashboard
+-   **Supabase Auth** handles secure authentication.
+-   **Multiple sign-in options:** Email/password, GitHub, and Discord.
+-   **Team-based roles & permissions:**
+    -   **Admin**: Full control over projects and team settings.
+    -   **Editor**: Edit boards but no admin privileges.
+    -   **Viewer**: Read-only access.
+-   **Board visibility settings:** Public, Team, or Private.
 
-DATABASE_URL should be the Supabase connection pooling url.
-DIRECT_URL should be the Supabase direct url.
-NEXT_PUBLIC_SUPABASE_URL should be the url given to you by auth
-NEXT_PUBLIC_SUPABASE_ANON_KEY should be the key given to you by auth
-NEXT_PUBLIC_SITE_URL should be the base url for your site (e.g. http://localhost:3000 for local dev or https://mywebsite.com for a hosted website)
+### 📌 **Project & Board Management**
 
-## src
+-   **Multiple boards per project** for better organization.
+-   **Kanban-style task management** with drag-and-drop functionality.
+-   **Custom workflows** for different types of projects.
+-   **Board customization**: Custom backgrounds, colors, and column limits.
+-   **Board snapshots**: Restore previous board states.
+-   **Column task limits**: Prevent workflow overload.
 
-This project uses the src directory to store project files
+### ✅ **Task Management**
 
-## Components
+-   **Task properties:** Priorities, labels, due dates, dependencies.
+-   **File attachments** for design docs, screenshots, etc.
+-   **Rich text descriptions** for detailed task explanations.
+-   **Checklists** for subtask tracking.
+-   **Task statuses**: Customizable workflow instead of a rigid "To Do / In Progress / Done" setup.
+-   **Task assignment**: Assign tasks to multiple team members.
 
-The components directory contains global components. Components specific to a certain page should be in a component
-folder under that pages directory
+### 📡 **Collaboration & Real-time Features**
 
-## Lib folder
+-   **Live presence indicators** to see who is online.
+-   **Real-time comments** on tasks.
+-   **Task history & change logs** for tracking edits.
 
-The lib folder handles anything that should remain relatively global within the app. At the time of writing,
-it currently handles creating a prisma client, and creating and handling the Supabase auth client and middleware.
+### 🔗 **Planned Integrations** (Future Roadmap)
 
-## App folder
+-   **GitHub**: Sync issues with tasks.
+-   **Google Docs**: Attach and collaborate on documents.
+-   **Discord Webhooks**: Send automatic updates to team channels.
 
-The app folder contains the code for everything else the app needs to function.
+### 📊 **Views & Layouts**
+
+-   **Kanban View** – Primary task organization.
+-   **Calendar View** – Track due dates.
+-   **Overview Table** – Quick task overview.
+
+---
+
+## Installation & Setup
+
+### 📥 Prerequisites
+
+-   **Node.js** v22 or higher.
+-   A **Supabase** project.
+
+### 🛠 Setup Instructions
+
+1. Clone the repository:
+    ```sh
+    git clone https://github.com/haloreach252/dev-task-manager.git
+    cd dev-task-manager
+    ```
+2. Install dependencies:
+    ```sh
+    npm install --legacy-peer-deps
+    ```
+3. Set up environment variables:
+    - Rename `.env.example` to `.env` and fill in the necessary values.
+    - Required environment variables:
+        ```env
+        DATABASE_URL=your_supabase_db_url
+        DIRECT_URL=your_supabase_direct_url
+        NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+        NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+        NEXT_PUBLIC_SITE_URL=http://localhost:3000  # Change for production
+        SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+        ```
+4. Run the development server:
+    ```sh
+    npm run dev
+    ```
+
+---
+
+## Usage
+
+-   The UI is designed to be **compact and intuitive**.
+-   More detailed UI/UX documentation is available in the **[Design Documentation](./notes/design_doc.md)**.
+-   No keyboard shortcuts, tips, or best practices at the moment.
+
+---
+
+## Contribution Guidelines
+
+🚫 **Public contributions are not currently accepted.**
+
+-   The project may be open-sourced in the future.
+-   Security concerns prevent full code transparency at this time.
+
+---
+
+## License & Credits
+
+-   **All rights reserved** – Miniverse Studios.
+-   No external credits at this time.
+
+---
+
+## Future Roadmap
+
+🚀 Planned features include:
+
+-   **Task templates** for common workflows.
+-   **Subtasks & dependencies** for better task structuring.
+-   **Recurring tasks** to automate workflows.
+-   **Whiteboard brainstorming tool**.
+-   **Task automation (Zapier or built-in triggers)**.
+
+Stay tuned for more updates! 🚀

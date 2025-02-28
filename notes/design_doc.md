@@ -1,0 +1,226 @@
+# **🔹 Miniverse Dev Task Manager - Style & Theme Guide**
+
+This document serves as a **comprehensive design guide** for Miniverse Dev Task Manager. It defines the **UI/UX philosophy, design patterns, and component usage** to ensure consistency across all pages. This will allow us to seamlessly continue development, even in a new chat.
+
+---
+
+## **🎨 Core Design Principles**
+
+Miniverse Dev Task Manager follows these **key design principles**:
+
+✅ **Minimalist & Developer-Friendly** – Clean UI with minimal distractions.  
+✅ **Dark Mode First** – Designed with a sleek dark theme, but supports light mode.  
+✅ **ShadCN & Radix UI** – UI components are sourced from **ShadCN**, using **Radix UI** as a fallback.  
+✅ **Framer Motion Animations** – Smooth, subtle animations for enhanced UX.  
+✅ **TailwindCSS** – Utility-first styling for rapid and consistent UI development.  
+✅ **Next.js & React Query** – Ensures **fast, responsive** updates with server state management.
+
+---
+
+## **🌑 Dark Mode First, Light Mode Supported**
+
+-   The default theme is **dark mode**, providing a sleek developer-oriented aesthetic.
+-   Light mode is available and toggled via the **theme switcher in the navbar**.
+-   Uses **TailwindCSS `dark:` utilities** to ensure components work in both themes.
+
+📌 **Example Dark Mode Colors:**
+
+-   **Background**: `bg-gray-900`
+-   **Card Background**: `bg-gray-800`
+-   **Text**: `text-gray-100`
+-   **Border**: `border-gray-700`
+
+📌 **Example Light Mode Colors:**
+
+-   **Background**: `bg-gray-100`
+-   **Card Background**: `bg-white`
+-   **Text**: `text-gray-900`
+-   **Border**: `border-gray-300`
+
+---
+
+## **📌 Core UI Elements**
+
+### **🔹 Navbar**
+
+-   **Compact with Icons** – Only essential links are shown, using **Lucide Icons** for clarity.
+-   **Mobile-Friendly** – Uses a **responsive menu drawer** on small screens.
+-   **Dropdown for User Profile** – Includes **Profile, Settings, Logout**.
+-   **Theme Toggle** – Switch between light and dark mode with **ShadCN dropdown menu**.
+
+### **🔹 Cards**
+
+-   **Used for almost everything** (Projects, Teams, Boards, Tasks).
+-   **Hover Effects** – Slight scale-up effect on hover (`whileHover={{ scale: 1.02 }}`).
+-   **Subtle Shadows** – Adds depth (`shadow-lg hover:shadow-xl`).
+
+📌 **Example Layout:**
+
+```tsx
+<Card className="hover:shadow-lg cursor-pointer">
+	<CardHeader>
+		<CardTitle>Project Name</CardTitle>
+	</CardHeader>
+	<CardContent>
+		<p className="text-gray-600 dark:text-gray-400">Short description</p>
+	</CardContent>
+</Card>
+```
+
+### **🔹 Buttons**
+
+-   **Primary (`variant="default"`)** – Used for main actions.
+-   **Secondary (`variant="secondary"`)** – Used for alternative actions.
+-   **Destructive (`variant="destructive"`)** – Used for dangerous actions (e.g., deleting).
+-   **Icons for Actions** – Buttons often contain **Lucide Icons** (e.g., Plus for "Create", Trash for "Delete").
+
+📌 **Example Button:**
+
+```tsx
+<Button>
+	<Plus className="w-5 h-5 mr-2" /> Create New Project
+</Button>
+```
+
+### **🔹 Dialogs (Modals)**
+
+-   Used for **creating, editing, and deleting** resources.
+-   **Always include a cancel button** to avoid accidental actions.
+-   **Framer Motion Animations** for smooth pop-in effects.
+
+📌 **Example:**
+
+```tsx
+<Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+	<DialogContent>
+		<DialogHeader>
+			<DialogTitle>Create New Team</DialogTitle>
+		</DialogHeader>
+		<Input
+			placeholder="Team Name"
+			value={newTeamName}
+			onChange={(e) => setNewTeamName(e.target.value)}
+		/>
+		<DialogFooter>
+			<Button onClick={handleCreate}>Create</Button>
+		</DialogFooter>
+	</DialogContent>
+</Dialog>
+```
+
+### **🔹 Tabs (Switching Sections)**
+
+-   Used for **subsections** like **"Team Members" vs "Projects"** in the team dashboard.
+-   Implemented using **ShadCN Tabs** for a smooth experience.
+
+📌 **Example:**
+
+```tsx
+<Tabs defaultValue="members">
+	<TabsList>
+		<TabsTrigger value="members">Team Members</TabsTrigger>
+		<TabsTrigger value="projects">Projects</TabsTrigger>
+	</TabsList>
+	<TabsContent value="members">Member List Here</TabsContent>
+	<TabsContent value="projects">Project List Here</TabsContent>
+</Tabs>
+```
+
+---
+
+## **📌 Page Patterns**
+
+### **🔹 Dashboard Pages (`/teams`, `/projects`)**
+
+-   **Header with Page Title & Actions** (e.g., "Create New Project").
+-   **Grid of Cards** (Teams, Projects, Boards).
+-   **Sorting & Filtering Options** (For Boards, Projects).
+-   **Empty State Handling** (If no projects, suggest creating one).
+
+### **🔹 Detail Pages (`/teams/[teamId]`, `/projects/[projectId]`)**
+
+-   **Title & Description** at the top.
+-   **Tabs for Sections** (e.g., "Members", "Projects", "Settings").
+-   **Editable Inline Fields** (Click to edit team/project name).
+
+### **🔹 Management Pages (`/teams/[teamId]/management`)**
+
+-   **Role-Based Access Control** (Only Admins can manage roles).
+-   **List of Members with Role Dropdowns**.
+-   **Ability to Invite & Remove Members**.
+
+### **🔹 Boards (`/boards/[boardId]`)**
+
+-   **Kanban Layout** using `@dnd-kit`.
+-   **Draggable Tasks** between columns.
+-   **Task Cards with Priority Indicators**.
+-   **Real-Time Updates** via Supabase Realtime.
+
+---
+
+## **🎥 Animations & Microinteractions**
+
+**We use `framer-motion` for animations**, following these principles:
+
+🔹 **Subtle Hover Effects** – Cards and buttons slightly scale on hover.  
+🔹 **Smooth Pop-in Animations** – Modals, dropdowns, and tooltips appear with a fade-in.  
+🔹 **Drag & Drop for Tasks** – Used in Board Views.
+
+📌 **Example Hover Effect:**
+
+```tsx
+<motion.div whileHover={{ scale: 1.02 }} transition={{ duration: 0.2 }}>
+	<Card className="hover:shadow-lg transition-transform cursor-pointer">
+		<CardHeader>
+			<CardTitle>Project Name</CardTitle>
+		</CardHeader>
+	</Card>
+</motion.div>
+```
+
+---
+
+## **🔹 Role-Based Access Control (RBAC)**
+
+-   Users have **roles with permissions** (Admin, Editor, Viewer).
+-   **Admins have `*` (full access).**
+-   **Editors have specific permissions (e.g., `editTeam`, `manageProjects`).**
+-   **Viewers have read-only access.**
+-   **Permissions are stored as JSON and checked dynamically.**
+
+📌 **Permission Check Function:**
+
+```tsx
+function checkPermissions(
+	userPermissions: string[],
+	requiredPermissions: string[]
+) {
+	return userPermissions.some((perm) => requiredPermissions.includes(perm));
+}
+```
+
+---
+
+## **🚀 Summary**
+
+Miniverse Dev Task Manager is built with:
+
+-   **Dark Mode First** 🌑 (Light Mode Supported)
+-   **ShadCN + TailwindCSS + Radix UI**
+-   **Framer Motion for Smooth Animations** 🎥
+-   **React Query for Fast API Fetching** ⚡
+-   **RBAC for Secure Role-Based Access** 🔒
+-   **Real-Time Features (Supabase Realtime)** 🔄
+
+---
+
+## **🚀 Future Pages**
+
+Following this guide, any new pages will:
+
+-   Use **consistent layouts** (cards, buttons, dialogs, etc.).
+-   Follow **RBAC permissions** to allow/disallow actions.
+-   Include **sorting, filtering, and animations** for better UX.
+-   Handle **empty states gracefully**.
+
+This guide should be enough to **continue development in any new chat** without losing the core vision. Let me know if you need any refinements! 🚀😊
