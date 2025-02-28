@@ -1,15 +1,25 @@
-// src/app/api/boards/[boardId]/route.ts
-
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { createClient } from '@/lib/supabase';
 
 export async function GET(
 	req: Request,
 	props: { params: Promise<{ boardId: string }> }
 ) {
 	const { boardId } = await props.params;
+	const supabase = await createClient();
+
+	const {
+		data: { user },
+		error,
+	} = await supabase.auth.getUser();
+
+	if (!user || error) {
+		return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+	}
 
 	try {
+		// Fetch the board with visibility settings
 		const board = await prisma.board.findUnique({
 			where: { id: boardId },
 			include: {
@@ -17,6 +27,7 @@ export async function GET(
 					orderBy: { order: 'asc' },
 					include: { tasks: { orderBy: { order: 'asc' } } },
 				},
+				project: { include: { team: { include: { members: true } } } },
 			},
 		});
 
@@ -27,56 +38,47 @@ export async function GET(
 			);
 		}
 
+		// Get the visibility of the board
+		const { visibility, project } = board;
+
+		// If the board is PRIVATE, check if the user is a member of the board
+		if (visibility === 'PRIVATE') {
+			const boardMember = await prisma.teamMember.findFirst({
+				where: {
+					userId: user.id,
+					teamId: project.teamId,
+				},
+			});
+
+			if (!boardMember) {
+				return NextResponse.json(
+					{
+						error: 'Forbidden: You do not have access to this board',
+					},
+					{ status: 403 }
+				);
+			}
+		}
+
+		// If the board is TEAM, check if the user is in the team
+		if (visibility === 'TEAM') {
+			const isTeamMember = project.team.members.some(
+				(member) => member.userId === user.id
+			);
+
+			if (!isTeamMember) {
+				return NextResponse.json(
+					{ error: 'Forbidden: You are not part of this team' },
+					{ status: 403 }
+				);
+			}
+		}
+
 		return NextResponse.json(board);
 	} catch (error) {
 		console.error('GET Board Error:', error);
 		return NextResponse.json(
 			{ error: 'Failed to fetch board' },
-			{ status: 500 }
-		);
-	}
-}
-
-export async function PUT(
-	req: Request,
-	props: { params: Promise<{ boardId: string }> }
-) {
-	const { boardId } = await props.params;
-	const { name, visibility } = await req.json();
-
-	try {
-		const updatedBoard = await prisma.board.update({
-			where: { id: boardId },
-			data: { name, visibility },
-		});
-
-		return NextResponse.json(updatedBoard);
-	} catch (error) {
-		console.error('PUT Board Error:', error);
-		return NextResponse.json(
-			{ error: 'Failed to update board' },
-			{ status: 500 }
-		);
-	}
-}
-
-export async function DELETE(
-	req: Request,
-	props: { params: Promise<{ boardId: string }> }
-) {
-	const { boardId } = await props.params;
-
-	try {
-		// Delete related columns and tasks before deleting the board
-		await prisma.task.deleteMany({ where: { column: { boardId } } });
-		await prisma.column.deleteMany({ where: { boardId } });
-		await prisma.board.delete({ where: { id: boardId } });
-
-		return NextResponse.json({ message: 'Board deleted' });
-	} catch (error) {
-		console.error('DELETE Board Error:', error);
-		return NextResponse.json(
-			{ error: 'Failed to delete board' },
 			{ status: 500 }
 		);
 	}

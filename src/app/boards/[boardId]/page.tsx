@@ -1,11 +1,14 @@
 // src/app/boards/[boardId]/page.tsx
 'use client';
 
-import { useParams } from 'next/navigation';
-import KanbanBoard from './KanbanBoard';
-import { useEffect, useState } from 'react';
-import axios from 'axios';
+import { useParams, useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
+import axios, { AxiosError } from 'axios';
 import { useToast } from '@/hooks/use-toast';
+import KanbanBoard from './KanbanBoard';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 
 type Board = {
 	id: string;
@@ -16,39 +19,63 @@ type Board = {
 export default function BoardPage() {
 	const { boardId } = useParams();
 	const { toast } = useToast();
-	const [board, setBoard] = useState<Board | null>(null);
-	const [isLoading, setIsLoading] = useState(true);
+	const router = useRouter();
 
-	useEffect(() => {
-		if (!boardId) return;
+	// Fetch board data using React Query
+	const {
+		data: board,
+		isLoading,
+		isError,
+		error,
+	} = useQuery({
+		queryKey: ['board', boardId],
+		queryFn: async () => {
+			const { data } = await axios.get(`/api/boards/${boardId}`);
+			return data as Board;
+		},
+		retry: false,
+	});
 
-		const fetchBoard = async () => {
-			try {
-				const res = await axios.get(`/api/boards/${boardId}`);
-				setBoard(res.data);
-			} catch (error) {
-				console.error(error);
-				toast({
-					title: 'Error',
-					description: 'Failed to fetch board',
-					variant: 'destructive',
-				});
-			} finally {
-				setIsLoading(false);
-			}
-		};
+	// Loading UI (Skeletons)
+	if (isLoading) {
+		return (
+			<div className="p-6">
+				<Skeleton className="h-10 w-3/4 mb-4" />
+				<Skeleton className="h-8 w-1/2" />
+			</div>
+		);
+	}
 
-		fetchBoard();
-	}, [boardId, toast]);
+	// Error Handling
+	let errorMessage = 'Failed to fetch board';
+	let isForbidden = false;
 
-	if (isLoading) return <p className="p-6">Loading board...</p>;
-	if (!board) return <p className="p-6">Board not found.</p>;
+	if (error instanceof AxiosError && error.response) {
+		errorMessage = error.response.data?.error || errorMessage;
+		isForbidden = error.response.status === 403;
+	}
+
+	if (isError) {
+		return (
+			<div className="flex flex-col items-center justify-center min-h-screen p-6">
+				<Alert variant="destructive" className="max-w-md text-center">
+					<AlertTitle>
+						{isForbidden ? 'Access Denied' : 'Board Not Found'}
+					</AlertTitle>
+					<AlertDescription>{errorMessage}</AlertDescription>
+				</Alert>
+				<Button className="mt-6" onClick={() => router.push('/')}>
+					Go Home
+				</Button>
+			</div>
+		);
+	}
 
 	return (
 		<div className="min-h-screen flex flex-col bg-gray-100">
 			{/* Top Bar */}
 			<header className="bg-white shadow-sm px-6 py-4">
-				<h1 className="text-3xl font-bold">{board.name}</h1>
+				<h1 className="text-3xl font-bold">{board?.name}</h1>
 			</header>
 
 			{/* Board Content */}
