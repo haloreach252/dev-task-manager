@@ -59,6 +59,7 @@ export async function GET() {
 			return {
 				id: team.id,
 				name: team.name,
+				description: team.description,
 				totalMembers: team.members.length,
 				permissions,
 			};
