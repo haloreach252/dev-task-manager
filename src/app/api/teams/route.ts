@@ -136,7 +136,7 @@ export async function POST(request: Request) {
 				teamId: team.id,
 				userId,
 				teamRoleId: adminRole?.id || '',
-				customPermissions: {},
+				customPermissions: JSON.stringify({ '*': true }),
 			},
 		});
 
