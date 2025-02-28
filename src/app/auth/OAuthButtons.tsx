@@ -12,7 +12,7 @@ export default function OAuthButtons({
 	redirectPath,
 }: {
 	redirectPath: string;
-}) {
+}): React.ReactNode {
 	const handleOAuthLogin = async (provider: OAuthProvider) => {
 		const url = await loginWithOAuth(provider, redirectPath);
 		if (url) {
