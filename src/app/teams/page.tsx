@@ -238,11 +238,12 @@ export default function TeamsDashboard() {
 											onBlur={() => handleSave(team.id)}
 										/>
 									) : (
-										<CardTitle
-											className="flex justify-between items-center cursor-pointer"
-											onClick={() => handleEdit(team)}
-										>
-											{team.name}
+										<CardTitle className="flex justify-between items-center cursor-pointer">
+											<span
+												onClick={() => handleEdit(team)}
+											>
+												{team.name}
+											</span>
 											{checkPermissions(
 												team.permissions,
 												editPermissions
@@ -250,6 +251,9 @@ export default function TeamsDashboard() {
 												<Button
 													size="icon"
 													variant="ghost"
+													onClick={() =>
+														handleEdit(team)
+													}
 												>
 													<Pencil className="w-4 h-4 text-gray-500" />
 												</Button>
