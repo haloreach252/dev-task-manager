@@ -1,3 +1,5 @@
+// src/app/api/teams/[teamId]/projects/route.ts
+
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { createClient } from '@/lib/supabase';

@@ -1,3 +1,5 @@
+// src/app/api/teams/[teamId]/route.ts
+
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { createClient } from '@/lib/supabase';
@@ -54,13 +56,6 @@ export async function GET(
 				);
 			}
 		}
-
-		/*
-		const userMember = team.members.find((m) => m.userId === user.id);
-		const permissions =
-			userMember?.teamRole.name === 'Admin'
-				? ['*']
-				: JSON.parse(userMember?.teamRole.permissions || '{}');*/
 
 		return NextResponse.json({
 			team: { ...team, permissions: permissions || [] },

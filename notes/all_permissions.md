@@ -11,3 +11,5 @@ The wildcard (\*) permission is granted to team admins by default, and will allo
 -   deleteTeam: Able to delete the team
 -   manageMembers: Able to manage team members, changing roles and permissions
 -   manageProjects: Able to manage team projects
+-   viewProjects: Able to view team projects
+-   editProjects: Able to edit projects to an extent (can't rename or delete projects, but can add boards and modify boards)

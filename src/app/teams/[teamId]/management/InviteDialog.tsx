@@ -1,3 +1,5 @@
+// src/app/teams/[teamId]/management/InviteDialog.tsx
+
 'use client';
 
 import { useState } from 'react';

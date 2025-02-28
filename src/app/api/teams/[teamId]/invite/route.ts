@@ -1,3 +1,5 @@
+// src/app/api/teams/[teamId]/invite/route.ts
+
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { nanoid } from 'nanoid';
