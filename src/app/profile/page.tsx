@@ -1,8 +1,8 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
 import {
 	Card,
 	CardHeader,
@@ -12,7 +12,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
 	Dialog,
 	DialogContent,
@@ -23,52 +22,55 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import axios from 'axios';
 import { type User as UserProfile } from '@prisma/client';
 
 export default function ProfilePage() {
-	const [user, setUser] = useState<UserProfile | null>(null);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
+	const queryClient = useQueryClient();
+	const { toast } = useToast();
 
+	// Fetch user profile
+	const {
+		data: user,
+		isLoading,
+		isError,
+	} = useQuery({
+		queryKey: ['userProfile'],
+		queryFn: async () => {
+			const { data } = await axios.get<UserProfile>('/api/user/profile');
+			return data;
+		},
+	});
+
+	// State for editing profile
 	const [editOpen, setEditOpen] = useState(false);
 	const [editName, setEditName] = useState('');
 	const [uploading, setUploading] = useState(false);
 
-	const { toast } = useToast();
+	// Mutation for updating profile name
+	const updateProfileMutation = useMutation({
+		mutationFn: async (name: string) => {
+			const { data } = await axios.put('/api/user/profile', { name });
+			return data;
+		},
+		onSuccess: (updatedUser) => {
+			queryClient.setQueryData(['userProfile'], updatedUser);
+			setEditOpen(false);
+			toast({ title: 'Profile updated successfully' });
+		},
+		onError: () => {
+			toast({
+				title: 'Failed to update profile',
+				variant: 'destructive',
+			});
+		},
+	});
 
-	useEffect(() => {
-		const fetchProfile = async () => {
-			try {
-				const { data } = await axios.get<UserProfile>(
-					'/api/user/profile'
-				);
-				setUser(data);
-			} catch (err: any) {
-				console.error('Error fetching profile: ', err);
-				setError('Failed to load profile');
-			} finally {
-				setLoading(false);
-			}
-		};
+	// Mutation for uploading profile picture
+	const uploadProfilePictureMutation = useMutation({
+		mutationFn: async (file: File) => {
+			const formData = new FormData();
+			formData.append('file', file);
 
-		fetchProfile();
-	}, []);
-
-	const handleEdit = () => {
-		setEditName(user?.name || '');
-		setEditOpen(true);
-	};
-
-	const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-		const file = e.target.files?.[0];
-		if (!file) return;
-
-		const formData = new FormData();
-		formData.append('file', file);
-
-		setUploading(true);
-		try {
 			const { data } = await axios.post(
 				'/api/user/upload-profile-picture',
 				formData,
@@ -76,44 +78,54 @@ export default function ProfilePage() {
 					headers: { 'Content-Type': 'multipart/form-data' },
 				}
 			);
-
-			setUser((prev) =>
-				prev ? { ...prev, profilePicture: data.profilePicture } : null
+			return data.profilePicture;
+		},
+		onSuccess: (profilePicture) => {
+			queryClient.setQueryData(
+				['userProfile'],
+				(oldData: UserProfile | undefined) => {
+					return oldData ? { ...oldData, profilePicture } : oldData;
+				}
 			);
 			toast({ title: 'Profile picture updated' });
-		} catch (err) {
+		},
+		onError: () => {
 			toast({
 				title: 'Failed to upload picture',
 				variant: 'destructive',
 			});
-		} finally {
+		},
+		onSettled: () => {
 			setUploading(false);
-		}
+		},
+	});
+
+	// Handle profile picture upload
+	const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0];
+		if (!file) return;
+
+		setUploading(true);
+		uploadProfilePictureMutation.mutate(file);
 	};
 
-	const handleSave = async () => {
-		try {
-			const { data } = await axios.put('/api/user/profile', {
-				name: editName,
-			});
-
-			setUser(data);
-			setEditOpen(false);
-			toast({ title: 'Profile updated successfully' });
-		} catch (err) {
-			console.error('Error updating profile: ', err);
-			toast({
-				title: 'Failed to update profile',
-				variant: 'destructive',
-			});
-		}
+	// Handle profile edit
+	const handleEdit = () => {
+		setEditName(user?.name || '');
+		setEditOpen(true);
 	};
 
-	if (loading) {
+	// Handle profile save
+	const handleSave = () => {
+		if (!editName.trim()) return;
+		updateProfileMutation.mutate(editName);
+	};
+
+	if (isLoading) {
 		return (
 			<Card className="max-w-lg mx-auto p-6">
 				<CardHeader>
-					<Skeleton className="w-24 h-24 rounded-full mx-auth mb-4" />
+					<Skeleton className="w-24 h-24 rounded-full mx-auto mb-4" />
 					<Skeleton className="h-6 w-1/2 mx-auto" />
 				</CardHeader>
 				<CardContent className="space-y-2">
@@ -125,8 +137,17 @@ export default function ProfilePage() {
 		);
 	}
 
-	if (error) return <p className="text-center mt-10 text-red-500">{error}</p>;
-	if (!user) return <p className="text-center mt-10">No profile found.</p>;
+	if (isError) {
+		return (
+			<p className="text-center mt-10 text-red-500">
+				Failed to load profile
+			</p>
+		);
+	}
+
+	if (!user) {
+		return <p className="text-center mt-10">No profile found.</p>;
+	}
 
 	return (
 		<>
@@ -140,9 +161,6 @@ export default function ProfilePage() {
 						<AvatarFallback>{user?.name?.charAt(0)}</AvatarFallback>
 					</Avatar>
 					<h1 className="text-2xl font-bold">{user?.name}</h1>
-					<Badge variant="secondary" className="mt-2 capitalize">
-						Temp area
-					</Badge>
 				</CardHeader>
 
 				<CardContent className="space-y-4">
@@ -161,6 +179,7 @@ export default function ProfilePage() {
 				</CardContent>
 
 				<CardFooter className="flex justify-between">
+					{/* Upload Profile Picture */}
 					<Input
 						type="file"
 						accept="image/*"
@@ -194,7 +213,14 @@ export default function ProfilePage() {
 						>
 							Cancel
 						</Button>
-						<Button onClick={handleSave}>Save Changes</Button>
+						<Button
+							onClick={handleSave}
+							disabled={updateProfileMutation.isLoading}
+						>
+							{updateProfileMutation.isLoading
+								? 'Saving...'
+								: 'Save Changes'}
+						</Button>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>

@@ -1,3 +1,5 @@
+// src/app/api/user/upload-profile-picture/route.ts
+
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase';
