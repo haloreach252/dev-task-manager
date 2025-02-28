@@ -66,6 +66,8 @@ export async function GET(
 			);
 		}
 
+		console.log(permissions);
+
 		return NextResponse.json({
 			team: { ...team, permissions },
 			members: team.members,

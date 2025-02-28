@@ -40,7 +40,7 @@ export async function GET() {
 				(member) => member.userId === userId
 			);
 
-			let permissions = [];
+			let permissions: string[] = [];
 			if (userMember) {
 				const role = userMember.teamRole;
 				const rolePermissions = role?.permissions
@@ -113,9 +113,12 @@ export async function POST(request: Request) {
 				roles: {
 					createMany: {
 						data: [
-							{ name: 'Admin', permissions: {} },
-							{ name: 'Editor', permissions: {} },
-							{ name: 'Viewer', permissions: {} },
+							{
+								name: 'Admin',
+								permissions: JSON.stringify({ '*': true }),
+							},
+							{ name: 'Editor', permissions: JSON.stringify({}) },
+							{ name: 'Viewer', permissions: JSON.stringify({}) },
 						],
 					},
 				},

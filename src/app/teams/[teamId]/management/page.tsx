@@ -139,8 +139,8 @@ export default function TeamManagement() {
 
 	// Check if user has permission to manage the team
 	const canManageTeam =
-		team?.permissions?.includes('*') ||
-		team?.permissions?.includes('manageTeam');
+		team?.permissions.includes('*') ||
+		team?.permissions.includes('manageTeam');
 
 	if (teamLoading || membersLoading || rolesLoading) {
 		return (
