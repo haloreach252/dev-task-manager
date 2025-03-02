@@ -14,8 +14,9 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import InviteDialog from './InviteDialog';
-import { type TeamMember } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import { usePermissions } from '@/hooks/usePermissions';
+import Link from 'next/link';
 
 type TeamRole = {
 	id: string;
@@ -29,10 +30,17 @@ type Team = {
 	canManageTeam: boolean;
 };
 
+type TeamMember = {
+	id: string;
+	user: { id: string; name?: string; email: string };
+	teamRole: TeamRole;
+};
+
 export default function TeamManagement() {
 	const params = useParams();
 	const teamId = params.teamId as string;
 	const { toast } = useToast();
+	const { hasPermission } = usePermissions(teamId);
 	const queryClient = useQueryClient();
 
 	// Fetch team data
@@ -162,10 +170,6 @@ export default function TeamManagement() {
 		);
 	}
 
-	const canManageTeam =
-		team?.permissions?.includes('*') ||
-		team?.permissions?.includes('manageMembers');
-
 	return (
 		<div className="p-8">
 			<h1 className="text-3xl font-bold mb-6">
@@ -187,7 +191,7 @@ export default function TeamManagement() {
 							</p>
 
 							{/* Role Selector - Only show if user can manage team */}
-							{canManageTeam && (
+							{hasPermission(teamId, 'manageMembers') && (
 								<Select
 									value={member.teamRole.id}
 									onValueChange={(newRoleId) =>
@@ -214,7 +218,7 @@ export default function TeamManagement() {
 							)}
 
 							{/* Remove Member Button - Only show if user can manage team */}
-							{canManageTeam && (
+							{hasPermission(teamId, 'manageMembers') && (
 								<Button
 									variant="destructive"
 									className="mt-4"
@@ -230,10 +234,20 @@ export default function TeamManagement() {
 				))}
 			</div>
 
-			{/* Invite Dialog - Only show if user can manage team */}
-			{canManageTeam && (
-				<InviteDialog teamId={teamId} setMembers={updateMembers} />
-			)}
+			<div className="flex gap-4">
+				{/* Invite Dialog - Only show if user can manage team */}
+				{hasPermission(teamId, 'manageMembers') && (
+					<InviteDialog teamId={teamId} setMembers={updateMembers} />
+				)}
+
+				{hasPermission(teamId, 'manageRoles') && (
+					<Button className="mt-6">
+						<Link href={`/teams/${teamId}/management/roles`}>
+							Manage Roles
+						</Link>
+					</Button>
+				)}
+			</div>
 		</div>
 	);
 }

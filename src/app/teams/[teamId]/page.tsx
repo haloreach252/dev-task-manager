@@ -14,17 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
 import { Users, FolderKanban, Plus, Pencil, Check, X } from 'lucide-react';
-
-const manageMembersPermissions = ['*', 'manageMembers'];
-const manageProjectsPermissions = ['*', 'manageProjects'];
-const editDescriptionPermissions = ['*', 'editDescription', 'editTeam'];
-
-function checkPermissions(
-	userPermissions: string[],
-	requiredPermissions: string[]
-) {
-	return userPermissions.some((perm) => requiredPermissions.includes(perm));
-}
+import { usePermissions } from '@/hooks/usePermissions';
 
 type Team = {
 	id: string;
@@ -49,6 +39,7 @@ export default function TeamOverview() {
 	const params = useParams();
 	const teamId = params.teamId as string;
 	const { toast } = useToast();
+	const { hasPermission } = usePermissions(teamId);
 	const queryClient = useQueryClient();
 	const [isEditingDescription, setIsEditingDescription] = useState(false);
 	const [updatedDescription, setUpdatedDescription] = useState('');
@@ -149,10 +140,7 @@ export default function TeamOverview() {
 							<p className="text-gray-600">
 								{team.description || 'No description available'}
 							</p>
-							{checkPermissions(
-								team.permissions,
-								editDescriptionPermissions
-							) && (
+							{hasPermission(teamId, 'editTeam') && (
 								<Button
 									size="icon"
 									variant="ghost"
@@ -194,10 +182,7 @@ export default function TeamOverview() {
 						))}
 					</div>
 
-					{checkPermissions(
-						team.permissions,
-						manageMembersPermissions
-					) && (
+					{hasPermission(teamId, 'manageMembers') && (
 						<Button
 							className="mt-4 flex items-center gap-2"
 							asChild

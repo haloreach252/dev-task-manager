@@ -29,24 +29,27 @@ export async function POST(req: Request) {
 	if (!dbUser)
 		return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+	let permissionsMap: Record<string, any> = {};
 	if (dbUser.isAdmin) {
-		if (teamId) return NextResponse.json({ permissions: { '*': true } });
-		// Grant full access if the user is an admin
-		const allPermissions = Object.fromEntries(
-			teamIds.map((id) => [id, { '*': true }])
-		);
-		return NextResponse.json({ permissions: allPermissions });
-	}
-
-	if (teamId) {
-		const permissions = await getUserPermissions(user.id, teamId);
-		return NextResponse.json({ permissions });
-	}
-
-	// Fetch permissions for all requested teams
-	const permissionsMap: Record<string, any> = {};
-	for (const teamId of teamIds) {
-		permissionsMap[teamId] = await getUserPermissions(user.id, teamId);
+		if (teamId) {
+			permissionsMap[teamId] = { '*': true };
+		} else {
+			permissionsMap = Object.fromEntries(
+				teamIds.map((id) => [id, { '*': true }])
+			);
+		}
+	} else {
+		if (teamId) {
+			permissionsMap[teamId] = await getUserPermissions(user.id, teamId);
+		} else {
+			// Fetch permissions for all requested teams
+			for (const teamId of teamIds) {
+				permissionsMap[teamId] = await getUserPermissions(
+					user.id,
+					teamId
+				);
+			}
+		}
 	}
 
 	return NextResponse.json({ permissions: permissionsMap });
