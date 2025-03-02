@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import prisma from '@/lib/prisma';
 
 export default async function AdminLayout({
@@ -18,7 +18,8 @@ export default async function AdminLayout({
 	});
 
 	if (!user || !user.isAdmin) {
-		redirect('/');
+		notFound();
+		redirect('/error');
 	}
 
 	return <>{children}</>;
