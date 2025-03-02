@@ -44,6 +44,13 @@ model Team {
   integrations Integration[]
 }
 
+model ContactSubmission {
+  id String @id @default(uuid())
+  name String
+  email String
+  message String
+}
+
 model TeamRole {
   id          String @id @default(uuid())
   name        String // e.g. "Admin", "Editor", "Viewer" or custom role name
