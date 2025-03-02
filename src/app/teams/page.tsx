@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import DeleteTeamDialog from './DeleteTeamDialog';
 import { useRouter } from 'next/navigation';
+import { usePermissions } from '@/hooks/usePermissions';
 
 type Team = {
 	id: string;
@@ -40,10 +41,6 @@ type Team = {
 	totalMembers: number;
 	permissions: string[];
 };
-
-const editPermissions = ['*', 'editTeam'];
-
-const deletePermissions = ['*', 'deleteTeam'];
 
 function checkPermissions(
 	userPermissions: string[],
@@ -76,6 +73,9 @@ export default function TeamsDashboard() {
 			);
 		},
 	});
+
+	const teamIds = teams?.map((team) => team.id) || [];
+	const { hasPermission } = usePermissions(teamIds);
 
 	// Mutation to create a team
 	const createTeam = useMutation({
@@ -151,7 +151,8 @@ export default function TeamsDashboard() {
 	});
 
 	const handleEdit = (team: Team) => {
-		if (!checkPermissions(team.permissions, editPermissions)) return;
+		//if (!checkPermissions(team.permissions, editPermissions)) return;
+		if (!hasPermission(team.id, 'team.edit')) return;
 		setEditingTeamId(team.id);
 		setEditedTeamName(team.name);
 	};
@@ -219,17 +220,17 @@ export default function TeamsDashboard() {
 											onKeyDown={(e) => {
 												if (
 													e.key === 'Enter' &&
-													checkPermissions(
-														team.permissions,
-														editPermissions
+													hasPermission(
+														team.id,
+														'team.edit'
 													)
 												)
 													handleSave(team.id);
 												if (
 													e.key === 'Escape' &&
-													checkPermissions(
-														team.permissions,
-														editPermissions
+													hasPermission(
+														team.id,
+														'team.edit'
 													)
 												)
 													setEditingTeamId(null);
@@ -244,9 +245,9 @@ export default function TeamsDashboard() {
 											>
 												{team.name}
 											</span>
-											{checkPermissions(
-												team.permissions,
-												editPermissions
+											{hasPermission(
+												team.id,
+												'team.edit'
 											) && (
 												<Button
 													size="icon"
@@ -258,9 +259,9 @@ export default function TeamsDashboard() {
 													<Pencil className="w-4 h-4 text-gray-500" />
 												</Button>
 											)}
-											{checkPermissions(
-												team.permissions,
-												deletePermissions
+											{hasPermission(
+												team.id,
+												'team.delete'
 											) && (
 												<Button
 													size="icon"
