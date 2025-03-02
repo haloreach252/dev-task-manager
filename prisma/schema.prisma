@@ -19,6 +19,7 @@ model User {
   email          String   @unique
   name           String?
   profilePicture String?
+  isAdmin        Boolean  @default(false)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -44,6 +45,15 @@ model Team {
   integrations Integration[]
 }
 
+model Changelog {
+  id           String   @id @default(uuid())
+  version      String
+  date         DateTime @default(now())
+  features     String // JSON array of features
+  fixes        String // JSON array of bug fixes
+  improvements String // JSON array of improvements
+}
+
 model ContactSubmission {
   id      String @id @default(uuid())
   name    String
@@ -64,7 +74,7 @@ model TeamRole {
   teamMembers TeamMember[]
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 }
 
 model TeamMember {
@@ -79,7 +89,7 @@ model TeamMember {
   joinedAt          DateTime @default(now())
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   @@unique([userId, teamId])
 }

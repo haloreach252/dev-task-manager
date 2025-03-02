@@ -1,18 +1,25 @@
-import { createClient } from "@/lib/supabase"
-import { redirect } from "next/navigation"
+import { createClient } from '@/lib/supabase';
+import { redirect } from 'next/navigation';
+import prisma from '@/lib/prisma';
 
-export default async function AdminLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-    const supabase = await createClient();
+export default async function AdminLayout({
+	children,
+}: Readonly<{ children: React.ReactNode }>) {
+	const supabase = await createClient();
 
-    const { data, error } = await supabase.auth.getUser();
+	const { data, error } = await supabase.auth.getUser();
 
-    if (error || !data?.user) {
-        redirect('/auth');
-    }
+	if (error || !data?.user) {
+		redirect('/auth');
+	}
 
-    return (
-        <>
-            {children}
-        </>
-    )
+	const user = await prisma.user.findUnique({
+		where: { id: data.user.id },
+	});
+
+	if (!user || !user.isAdmin) {
+		redirect('/');
+	}
+
+	return <>{children}</>;
 }
