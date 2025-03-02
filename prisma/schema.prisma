@@ -30,11 +30,11 @@ model User {
 }
 
 model Team {
-  id        String   @id @default(uuid())
-  name      String
+  id          String   @id @default(uuid())
+  name        String
   description String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   // Relations
   members      TeamMember[]
@@ -45,10 +45,12 @@ model Team {
 }
 
 model ContactSubmission {
-  id String @id @default(uuid())
-  name String
-  email String
+  id      String @id @default(uuid())
+  name    String
+  email   String
   message String
+
+  createdAt DateTime @default(now())
 }
 
 model TeamRole {
@@ -60,6 +62,9 @@ model TeamRole {
 
   // Inverse relation to members using this role
   teamMembers TeamMember[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt @default(now())
 }
 
 model TeamMember {
@@ -72,6 +77,9 @@ model TeamMember {
   teamRoleId        String
   customPermissions String // Optional custom permissions specific to the user
   joinedAt          DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt @default(now())
 
   @@unique([userId, teamId])
 }
