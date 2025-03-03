@@ -199,11 +199,11 @@ export default function TeamRolesPage() {
 					/>
 
 					{/* Permission Categories */}
-					<div className="space-y-4">
+					<div className="grid grid-cols-3 gap-4 auto-rows-min">
 						{Object.keys(groupedPermissions).map((category) => (
 							<div
 								key={category}
-								className="border p-4 rounded-lg"
+								className="border p-4 rounded-lg flex flex-col self-start"
 							>
 								<button
 									type="button"
@@ -223,24 +223,24 @@ export default function TeamRolesPage() {
 									<div className="mt-2 grid grid-cols-2 gap-2">
 										{groupedPermissions[category].map(
 											(perm) => (
-												<label
+												<Button
 													key={perm.key}
-													className="flex items-center gap-2"
+													className={`text-sm ${
+														selectedPermissions[
+															perm.key
+														]
+															? 'bg-blue-500 text-white'
+															: 'bg-gray-400 text-black'
+													}`}
+													onClick={(e) => {
+														e.preventDefault();
+														togglePermission(
+															perm.key
+														);
+													}}
 												>
-													<Checkbox
-														checked={
-															selectedPermissions[
-																perm.key
-															] || false
-														}
-														onCheckedChange={() =>
-															togglePermission(
-																perm.key
-															)
-														}
-													/>
 													{perm.label}
-												</label>
+												</Button>
 											)
 										)}
 									</div>
