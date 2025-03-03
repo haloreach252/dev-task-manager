@@ -59,8 +59,7 @@ export type Permission = {
 	category: 'Management' | 'Team' | 'Task' | 'Column' | 'Board' | 'Project';
 };
 
-export const availablePermissions: Permission[] = [
-	// General management
+const managementPermissions: Permission[] = [
 	{
 		key: '*',
 		label: 'All Permissions (Admin)',
@@ -79,18 +78,103 @@ export const availablePermissions: Permission[] = [
 		level: 4,
 		category: 'Management',
 	},
+	{
+		key: 'viewSecurityLogs',
+		label: 'View Security Logs',
+		level: 3,
+		category: 'Management',
+	},
+	{
+		key: 'clearSecurityLogs',
+		label: 'Clear Security Logs',
+		level: 4,
+		category: 'Management',
+	},
+	{
+		key: 'viewAuditLogs',
+		label: 'View Audit Logs',
+		level: 3,
+		category: 'Management',
+	},
+	{
+		key: 'exportData',
+		label: 'Export Team Data',
+		level: 4,
+		category: 'Management',
+	},
+];
 
-	// Team management
+const teamPermissions: Permission[] = [
 	{ key: 'editTeam', label: 'Edit Team Info', level: 3, category: 'Team' },
 	{ key: 'deleteTeam', label: 'Delete Team', level: 4, category: 'Team' },
+	{
+		key: 'inviteMembers',
+		label: 'Invite Members',
+		level: 2,
+		category: 'Team',
+	},
+	{
+		key: 'removeMembers',
+		label: 'Remove Members',
+		level: 3,
+		category: 'Team',
+	},
+	{
+		key: 'changeMemberRoles',
+		label: 'Change Member Roles',
+		level: 3,
+		category: 'Team',
+	},
+	{
+		key: 'editTeamDescription',
+		label: 'Edit Team Description',
+		level: 3,
+		category: 'Team',
+	},
+	{ key: 'viewMembers', label: 'View Members', level: 2, category: 'Team' },
+];
 
-	// Task Management
+const taskPermissions: Permission[] = [
 	{ key: 'createTasks', label: 'Create Tasks', level: 1, category: 'Task' },
 	{ key: 'editTasks', label: 'Edit Tasks', level: 1, category: 'Task' },
 	{ key: 'archiveTasks', label: 'Archive Tasks', level: 2, category: 'Task' },
 	{ key: 'deleteTasks', label: 'Delete Tasks', level: 3, category: 'Task' },
+	{
+		key: 'assignTasks',
+		label: 'Assign Task Members',
+		level: 1,
+		category: 'Task',
+	},
+	{
+		key: 'markTasksComplete',
+		label: 'Mark Tasks Complete',
+		level: 1,
+		category: 'Task',
+	},
+	{
+		key: 'commentOnTasks',
+		label: 'Comment On Tasks',
+		level: 1,
+		category: 'Task',
+	},
+	{
+		key: 'deleteComments',
+		label: 'Delete Comments',
+		level: 2,
+		category: 'Task',
+	},
+	{
+		key: 'managePriorities',
+		label: 'Manage Task Priority',
+		level: 2,
+		category: 'Task',
+	},
+	{ key: 'uploadFiles', label: 'Upload Files', level: 2, category: 'Task' },
+	{ key: 'deleteFiles', label: 'Delete Files', level: 3, category: 'Task' },
+	{ key: 'viewFiles', label: 'View Files', level: 1, category: 'Task' },
+];
 
-	// Column Management
+const columnPermissions: Permission[] = [
 	{
 		key: 'createColumns',
 		label: 'Create Columns',
@@ -110,6 +194,101 @@ export const availablePermissions: Permission[] = [
 		level: 3,
 		category: 'Column',
 	},
+];
+
+const projectPermissions: Permission[] = [
+	{
+		key: 'createProjects',
+		label: 'Create Projects',
+		level: 3,
+		category: 'Project',
+	},
+	{
+		key: 'editProjects',
+		label: 'Edit Project Details',
+		level: 2,
+		category: 'Project',
+	},
+	{
+		key: 'deleteProjects',
+		label: 'Delete Projects',
+		level: 3,
+		category: 'Project',
+	},
+	{
+		key: 'archiveProjects',
+		label: 'Archive Projects',
+		level: 2,
+		category: 'Project',
+	},
+	{
+		key: 'viewProjects',
+		label: 'View Projects',
+		level: 1,
+		category: 'Project',
+	},
+];
+
+const boardPermissions: Permission[] = [
+	{
+		key: 'createBoards',
+		label: 'Create Boards',
+		level: 3,
+		category: 'Board',
+	},
+	{
+		key: 'editBoards',
+		label: 'Edit Board Details',
+		level: 2,
+		category: 'Board',
+	},
+	{
+		key: 'deleteBoards',
+		label: 'Delete Boards',
+		level: 3,
+		category: 'Board',
+	},
+	{
+		key: 'archiveBoards',
+		label: 'Archive Boards',
+		level: 2,
+		category: 'Board',
+	},
+	{
+		key: 'manageBoardVisibility',
+		label: 'Manage Board Visibility',
+		level: 2,
+		category: 'Board',
+	},
+	{
+		key: 'createLabels',
+		label: 'Create Board Labels',
+		level: 1,
+		category: 'Board',
+	},
+	{
+		key: 'editLabels',
+		label: 'Edit Board Labels',
+		level: 1,
+		category: 'Board',
+	},
+	{
+		key: 'deleteLabels',
+		label: 'Delete Board Labels',
+		level: 2,
+		category: 'Board',
+	},
+];
+
+//{ key: '', label: '', level: 1, category: ''},
+
+export const availablePermissions: Permission[] = [
+	...managementPermissions,
+	...teamPermissions,
+	...taskPermissions,
+	...columnPermissions,
+	...projectPermissions,
+	...boardPermissions,
 ];
 
 // Generate an object for quick lookups

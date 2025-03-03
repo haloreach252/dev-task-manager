@@ -199,52 +199,68 @@ export default function TeamRolesPage() {
 					/>
 
 					{/* Permission Categories */}
-					<div className="grid grid-cols-3 gap-4 auto-rows-min">
-						{Object.keys(groupedPermissions).map((category) => (
+					<div className="flex gap-4">
+						{/* Create 3 Flex Columns */}
+						{[0, 1, 2].map((colIndex) => (
 							<div
-								key={category}
-								className="border p-4 rounded-lg flex flex-col self-start"
+								key={colIndex}
+								className="flex flex-col gap-4 w-1/3 items-start"
 							>
-								<button
-									type="button"
-									className="w-full text-left font-semibold flex justify-between items-center"
-									onClick={() => toggleCategory(category)}
-								>
-									{category}{' '}
-									<span>
-										{expandedCategories[category] ? (
-											<SquareChevronUpIcon className="w-5 h-5" />
-										) : (
-											<SquareChevronDownIcon className="w-5 h-5" />
-										)}
-									</span>
-								</button>
-								{expandedCategories[category] && (
-									<div className="mt-2 grid grid-cols-2 gap-2">
-										{groupedPermissions[category].map(
-											(perm) => (
-												<Button
-													key={perm.key}
-													className={`text-sm ${
-														selectedPermissions[
-															perm.key
-														]
-															? 'bg-blue-500 text-white'
-															: 'bg-gray-400 text-black'
-													}`}
-													onClick={(e) => {
-														e.preventDefault();
-														togglePermission(
-															perm.key
-														);
-													}}
-												>
-													{perm.label}
-												</Button>
-											)
-										)}
-									</div>
-								)}
+								{Object.keys(groupedPermissions)
+									.filter(
+										(_, index) => index % 3 === colIndex
+									) // Distribute categories into 3 columns
+									.map((category) => (
+										<div
+											key={category}
+											className="border p-4 rounded-lg w-full"
+										>
+											<button
+												type="button"
+												className="w-full text-left font-semibold flex justify-between items-center"
+												onClick={() =>
+													toggleCategory(category)
+												}
+											>
+												{category}
+												<span>
+													{expandedCategories[
+														category
+													] ? (
+														<SquareChevronUpIcon className="w-5 h-5" />
+													) : (
+														<SquareChevronDownIcon className="w-5 h-5" />
+													)}
+												</span>
+											</button>
+											{expandedCategories[category] && (
+												<div className="mt-2 flex flex-wrap gap-2">
+													{groupedPermissions[
+														category
+													].map((perm) => (
+														<Button
+															key={perm.key}
+															className={`text-sm ${
+																selectedPermissions[
+																	perm.key
+																]
+																	? 'bg-blue-500 text-white'
+																	: 'bg-gray-400 text-black'
+															}`}
+															onClick={(e) => {
+																e.preventDefault();
+																togglePermission(
+																	perm.key
+																);
+															}}
+														>
+															{perm.label}
+														</Button>
+													))}
+												</div>
+											)}
+										</div>
+									))}
 							</div>
 						))}
 					</div>
