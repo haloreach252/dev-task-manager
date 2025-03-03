@@ -166,7 +166,7 @@ export default function TeamRolesPage() {
 			{/* Role List */}
 			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 				{roles?.map((role) => (
-					<Card key={role.id} onClick={() => handleEditRole(role)}>
+					<Card key={role.id} onClick={() => handleEditRole(role)} className='hover:cursor-pointer'>
 						<CardHeader className="flex flex-row justify-between">
 							<CardTitle>{role.name}</CardTitle>
 							{role.canDelete && (

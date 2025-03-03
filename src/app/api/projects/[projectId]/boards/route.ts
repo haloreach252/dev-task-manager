@@ -3,18 +3,33 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase';
 import prisma from '@/lib/prisma';
+import { getUserPermissions } from '@/lib/permissions';
 
 export async function GET(req: Request, props: { params: Promise<{ projectId: string }> }) {
     const supabase = await createClient();
     const { data: { user }, error } = await supabase.auth.getUser();
 
+    const { projectId } = await props.params;
+
     if (!user || error) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    try {
-        const { projectId } = await props.params;
+    const project = await prisma.project.findUnique({
+        where: { id: projectId }
+    });
 
+    if (!project) {
+        return NextResponse.json({ error: "Project not found" }, { status: 404 })
+    }
+
+    const userPermissions = await getUserPermissions(user.id, project.teamId);
+
+    if (!userPermissions['viewProjects'] && !userPermissions['*']) {
+        return NextResponse.json({ error: "Forbidden: You do not have permission to view this project" }, { status: 403 });
+    }
+
+    try {
         const boards = await prisma.board.findMany({
             where: { projectId },
             include: {

@@ -20,6 +20,7 @@ export async function GET(
 	// Check permissions
 	const board = await prisma.board.findUnique({
 		where: { id: boardId },
+		include: { project: true }
 	});
 
 	if (!board) {
@@ -34,18 +35,12 @@ export async function GET(
 			);
 		}
 
-		const project = await prisma.project.findUnique({
-			where: { id: board.projectId },
-		});
-
-		if (!project) {
-			return NextResponse.json({ error: "Project not found" }, { status: 404 });
-		}
-
-		const teamId = project.teamId;
+		const teamId = board.project.teamId;
 		const userPermissions = await getUserPermissions(user.id, teamId);
 
-		if (!userPermissions['viewTasks'])
+		if (!userPermissions['viewTasks'] && !userPermissions['*']) {
+			return NextResponse.json({ error: "Forbidden: You do not have permissions to edit tasks on this board" }, { status: 403 });
+		}
 	}
 
 	// Task detail get logic

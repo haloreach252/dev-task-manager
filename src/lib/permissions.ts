@@ -278,6 +278,12 @@ const boardPermissions: Permission[] = [
 		level: 2,
 		category: 'Board',
 	},
+	{
+		key: 'viewBoards',
+		label: "View Boards",
+		level: 1,
+		category: "Board"
+	}
 ];
 
 //{ key: '', label: '', level: 1, category: ''},

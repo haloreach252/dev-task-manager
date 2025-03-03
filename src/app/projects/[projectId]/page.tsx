@@ -6,7 +6,7 @@
 import { useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
 	Dialog,
@@ -30,6 +30,7 @@ import {
 	SortAsc,
 	SortDesc,
 } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const sortingOptions = [
 	{ label: 'Most Tasks', value: 'mostTasks' },
@@ -62,6 +63,7 @@ export default function ProjectBoardsPage() {
 	const {
 		data: boards,
 		isLoading,
+		isError,
 		error,
 		refetch,
 	} = useQuery<Board[]>({
@@ -154,6 +156,31 @@ export default function ProjectBoardsPage() {
 			);
 		return 0;
 	});
+
+	// Error Handling
+	let errorMessage = 'Failed to fetch board';
+	let isForbidden = false;
+
+	if (error instanceof AxiosError && error.response) {
+		errorMessage = error.response.data?.error || errorMessage;
+		isForbidden = error.response.status === 403;
+	}
+
+	if (isError) {
+		return (
+			<div className="flex flex-col items-center justify-center min-h-screen p-6">
+				<Alert variant="destructive" className="max-w-md text-center">
+					<AlertTitle>
+						{isForbidden ? 'Access Denied' : 'Board Not Found'}
+					</AlertTitle>
+					<AlertDescription>{errorMessage}</AlertDescription>
+				</Alert>
+				<Button className="mt-6" onClick={() => router.back()}>
+					Go Back
+				</Button>
+			</div>
+		);
+	}
 
 	return (
 		<div className="p-8 space-y-8">

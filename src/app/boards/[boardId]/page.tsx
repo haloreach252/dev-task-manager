@@ -64,8 +64,8 @@ export default function BoardPage() {
 					</AlertTitle>
 					<AlertDescription>{errorMessage}</AlertDescription>
 				</Alert>
-				<Button className="mt-6" onClick={() => router.push('/')}>
-					Go Home
+				<Button className="mt-6" onClick={() => router.back()}>
+					Go Back
 				</Button>
 			</div>
 		);
