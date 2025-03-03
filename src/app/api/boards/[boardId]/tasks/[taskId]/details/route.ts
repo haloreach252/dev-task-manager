@@ -2,13 +2,53 @@
 
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { getUserPermissions } from '@/lib/permissions';
+import { createClient } from '@/lib/supabase';
+import { BoardVisibility } from '@prisma/client';
 
 export async function GET(
 	request: Request,
 	props: { params: Promise<{ boardId: string; taskId: string }> }
 ) {
-	const { taskId } = await props.params;
+	const supabase = await createClient();
+	const {
+		data: { user },
+		error,
+	} = await supabase.auth.getUser();
+	const { taskId, boardId } = await props.params;
 
+	// Check permissions
+	const board = await prisma.board.findUnique({
+		where: { id: boardId },
+	});
+
+	if (!board) {
+		return NextResponse.json({ error: "Board not found" }, { status: 404 });
+	}
+
+	if (!(board.visibility === BoardVisibility.PUBLIC)) {
+		if (!user) {
+			return NextResponse.json(
+				{ error: 'Unauthorized' },
+				{ status: 403 }
+			);
+		}
+
+		const project = await prisma.project.findUnique({
+			where: { id: board.projectId },
+		});
+
+		if (!project) {
+			return NextResponse.json({ error: "Project not found" }, { status: 404 });
+		}
+
+		const teamId = project.teamId;
+		const userPermissions = await getUserPermissions(user.id, teamId);
+
+		if (!userPermissions['viewTasks'])
+	}
+
+	// Task detail get logic
 	try {
 		const task = await prisma.task.findUnique({
 			where: { id: taskId },

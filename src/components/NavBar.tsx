@@ -22,6 +22,7 @@ import {
 	Settings,
 	User,
 	LogOut,
+	Shield,
 } from 'lucide-react';
 import prisma from '@/lib/prisma';
 
@@ -79,6 +80,16 @@ export default async function NavBar() {
 							<span>{link.name}</span>
 						</Link>
 					))}
+				{userProfile?.isAdmin && (
+					<Link
+						key={'/admin'}
+						href={'/admin'}
+						className="flex items-center space-x-2 hover:text-indigo-400"
+					>
+						<Shield />
+						<span>Admin</span>
+					</Link>
+				)}
 			</div>
 
 			{/* Right Side - Theme Toggle & User Actions */}

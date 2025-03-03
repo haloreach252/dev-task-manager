@@ -11,8 +11,6 @@ import {
 	Mail,
 	Globe,
 	Check,
-	Dot,
-	DiamondPlus,
 	DiamondPlusIcon,
 } from 'lucide-react';
 import { motion } from 'framer-motion';

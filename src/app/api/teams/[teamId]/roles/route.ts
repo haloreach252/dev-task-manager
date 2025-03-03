@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase';
 import prisma from '@/lib/prisma';
+import {
+	getUserPermissions,
+	getUserMaxPermissionLevel,
+	permissionLevels,
+} from '@/lib/permissions';
 
 type Role = {
 	id: string;
@@ -64,25 +69,29 @@ export async function POST(
 		return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
-	// Check if user has permission to manage roles
-	const teamMember = await prisma.teamMember.findFirst({
-		where: { teamId, userId: user.id },
-		include: { teamRole: true },
-	});
+	// Get user's permissions
+	const userPermissions = await getUserPermissions(user.id, teamId);
+	const userMaxLevel = getUserMaxPermissionLevel(userPermissions);
 
-	if (!teamMember) {
-		return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+	// Ensure user has `manageRoles`
+	if (!userPermissions['manageRoles'] && !userPermissions['*']) {
+		return NextResponse.json(
+			{ error: 'Forbidden: Insufficient permissions' },
+			{ status: 403 }
+		);
 	}
 
-	const rolePermissions = teamMember.teamRole.permissions
-		? JSON.parse(teamMember.teamRole.permissions)
-		: {};
-	const hasPermission =
-		teamMember.teamRole.name === 'Admin' ||
-		rolePermissions.manageMembers === true;
-
-	if (!hasPermission) {
-		return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+	// Validate new role permissions
+	const newPermissions = JSON.parse(permissions);
+	for (const perm of Object.keys(newPermissions)) {
+		if ((permissionLevels[perm] || 0) > userMaxLevel) {
+			return NextResponse.json(
+				{
+					error: `You cannot assign the permission "${perm}" because your level is too low.`,
+				},
+				{ status: 403 }
+			);
+		}
 	}
 
 	try {

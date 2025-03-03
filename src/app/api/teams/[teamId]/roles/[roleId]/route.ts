@@ -1,6 +1,11 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase';
-import { getUserPermissions } from '@/lib/permissions';
+import {
+	getUserMaxPermissionLevel,
+	getUserPermissions,
+	permissionLevels,
+} from '@/lib/permissions';
 import prisma from '@/lib/prisma';
 
 export async function PATCH(
@@ -21,12 +26,25 @@ export async function PATCH(
 	}
 
 	const userPermissions = await getUserPermissions(user.id, teamId);
+	const userMaxLevel = getUserMaxPermissionLevel(userPermissions);
 
 	if (!userPermissions['manageRoles'] && !userPermissions['*']) {
 		return NextResponse.json(
 			{ error: 'Forbidden: Insufficient permissions.' },
 			{ status: 403 }
 		);
+	}
+
+	const newPermissions = JSON.parse(permissions);
+	for (const perm of Object.keys(newPermissions)) {
+		if ((permissionLevels[perm] || 0) > userMaxLevel) {
+			return NextResponse.json(
+				{
+					error: `You cannot assign the permission "${perm}" due to insufficient permissions.`,
+				},
+				{ status: 403 }
+			);
+		}
 	}
 
 	try {

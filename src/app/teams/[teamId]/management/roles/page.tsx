@@ -10,23 +10,18 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+	availablePermissions,
+	permissionLabels,
+	permissionCategories,
+} from '@/lib/permissions';
+import { SquareChevronDownIcon, SquareChevronUpIcon } from 'lucide-react';
 
 type TeamRole = {
 	id: string;
 	name: string;
 	permissions: Record<string, boolean>;
 };
-
-const availablePermissions = [
-	{ key: '*', label: 'All Permissions (Admin)' },
-	{ key: 'manageMembers', label: 'Manage Members' },
-	{ key: 'manageRoles', label: 'Manage Roles' },
-	{ key: 'editTeam', label: 'Edit Team Info' },
-	{ key: 'deleteTeam', label: 'Delete Team' },
-	{ key: 'createTasks', label: 'Create Tasks' },
-	{ key: 'editTasks', label: 'Edit Tasks' },
-	{ key: 'deleteTasks', label: 'Delete Tasks' },
-];
 
 export default function TeamRolesPage() {
 	const params = useParams();
@@ -39,6 +34,9 @@ export default function TeamRolesPage() {
 		Record<string, boolean>
 	>({});
 	const [editingRole, setEditingRole] = useState<TeamRole | null>(null);
+	const [expandedCategories, setExpandedCategories] = useState<
+		Record<string, boolean>
+	>({});
 
 	// Fetch roles
 	const {
@@ -119,6 +117,23 @@ export default function TeamRolesPage() {
 		}));
 	};
 
+	// Toggle category visiblity
+	const toggleCategory = (category: string) => {
+		setExpandedCategories((prev) => ({
+			...prev,
+			[category]: !prev[category],
+		}));
+	};
+
+	const groupedPermissions: Record<string, typeof availablePermissions> = {};
+	availablePermissions.forEach((perm) => {
+		if (!groupedPermissions[perm.category]) {
+			groupedPermissions[perm.category] = [];
+		}
+
+		groupedPermissions[perm.category].push(perm);
+	});
+
 	if (isLoading) return <p>Loading roles...</p>;
 	if (error) return <p className="text-red-500">Failed to load roles.</p>;
 
@@ -137,9 +152,7 @@ export default function TeamRolesPage() {
 							<ul className="text-sm">
 								{Object.keys(role.permissions).map((perm) => (
 									<li key={perm} className="text-gray-600">
-										{availablePermissions.find(
-											(p) => p.key === perm
-										)?.label || perm}
+										{permissionLabels[perm] || perm}
 									</li>
 								))}
 							</ul>
@@ -160,7 +173,7 @@ export default function TeamRolesPage() {
 				</Card>
 			</div>
 
-			{/* Create Role Form */}
+			{/* Create / Edit Role Form */}
 			{hasPermission(teamId, 'manageRoles') && (
 				<div className="mt-8 p-4 border rounded-lg">
 					<h2 className="text-xl font-semibold mb-4">
@@ -184,24 +197,58 @@ export default function TeamRolesPage() {
 						}
 						className="mb-4"
 					/>
-					<div className="grid grid-cols-2 gap-2">
-						{availablePermissions.map((perm) => (
-							<label
-								key={perm.key}
-								className="flex items-center gap-2"
+
+					{/* Permission Categories */}
+					<div className="space-y-4">
+						{Object.keys(groupedPermissions).map((category) => (
+							<div
+								key={category}
+								className="border p-4 rounded-lg"
 							>
-								<Checkbox
-									checked={
-										selectedPermissions[perm.key] || false
-									}
-									onCheckedChange={() =>
-										togglePermission(perm.key)
-									}
-								/>
-								{perm.label}
-							</label>
+								<button
+									type="button"
+									className="w-full text-left font-semibold flex justify-between items-center"
+									onClick={() => toggleCategory(category)}
+								>
+									{category}{' '}
+									<span>
+										{expandedCategories[category] ? (
+											<SquareChevronUpIcon className="w-5 h-5" />
+										) : (
+											<SquareChevronDownIcon className="w-5 h-5" />
+										)}
+									</span>
+								</button>
+								{expandedCategories[category] && (
+									<div className="mt-2 grid grid-cols-2 gap-2">
+										{groupedPermissions[category].map(
+											(perm) => (
+												<label
+													key={perm.key}
+													className="flex items-center gap-2"
+												>
+													<Checkbox
+														checked={
+															selectedPermissions[
+																perm.key
+															] || false
+														}
+														onCheckedChange={() =>
+															togglePermission(
+																perm.key
+															)
+														}
+													/>
+													{perm.label}
+												</label>
+											)
+										)}
+									</div>
+								)}
+							</div>
 						))}
 					</div>
+
 					<Button
 						className="mt-4"
 						onClick={
