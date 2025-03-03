@@ -61,3 +61,77 @@ export async function PATCH(
 		);
 	}
 }
+
+export async function DELETE(
+	req: Request,
+	props: { params: Promise<{ teamId: string; roleId: string }> }
+) {
+	const { teamId, roleId } = await props.params;
+
+	const supabase = await createClient();
+	const {
+		data: { user },
+		error,
+	} = await supabase.auth.getUser();
+
+	if (!user || error) {
+		return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+	}
+
+	const userPermissions = await getUserPermissions(user.id, teamId);
+	const userMaxLevel = getUserMaxPermissionLevel(userPermissions);
+
+	if (!userPermissions['manageRoles'] && !userPermissions['*']) {
+		return NextResponse.json(
+			{ error: 'Forbidden: Insufficient permissions.' },
+			{ status: 403 }
+		);
+	}
+
+	const roleToDelete = await prisma.teamRole.findUnique({
+		where: { id: roleId, teamId },
+	});
+
+	if (!roleToDelete) {
+		return NextResponse.json({ error: 'Role not found' }, { status: 404 });
+	}
+
+	const rolePermissions = JSON.parse(roleToDelete.permissions) || {};
+
+	const roleMaxLevel = getUserMaxPermissionLevel(rolePermissions) || 0;
+
+	if (userMaxLevel <= roleMaxLevel && !userPermissions['*']) {
+		return NextResponse.json(
+			{ error: 'Not enough permissions' },
+			{ status: 403 }
+		);
+	}
+
+	const assignedMembers = await prisma.teamMember.count({
+		where: { teamRoleId: roleId },
+	});
+
+	if (assignedMembers > 0) {
+		return NextResponse.json(
+			{ error: 'Role is in use and cannot be deleted.' },
+			{ status: 400 }
+		);
+	}
+
+	try {
+		await prisma.teamRole.delete({
+			where: { id: roleId, teamId },
+		});
+
+		return NextResponse.json(
+			{ message: 'Role deleted successfully' },
+			{ status: 200 }
+		);
+	} catch (error) {
+		console.error(error);
+		return NextResponse.json(
+			{ error: 'Internal Server Error' },
+			{ status: 500 }
+		);
+	}
+}
