@@ -3,6 +3,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase";
 import prisma from "@/lib/prisma";
+import { getUserPermissions } from "@/lib/permissions";
+import { type Project } from "@prisma/client";
 
 export async function GET() {
     const supabase = await createClient();
@@ -52,6 +54,7 @@ export async function GET() {
                 id: project.id,
                 name: project.name,
                 description: project.description,
+                teamId: project.teamId,
                 team: {
                     name: project.team.name
                 },
@@ -61,7 +64,17 @@ export async function GET() {
             };
         });
 
-        return NextResponse.json({ projects: projectsWithCounts });
+        const filteredProjects = [];
+
+        for (const project of projectsWithCounts) {
+            const userPermissions = await getUserPermissions(userId, project.teamId);
+
+            if (userPermissions['viewProjects'] || userPermissions['*']) {
+                filteredProjects.push(project);
+            }
+        }
+
+        return NextResponse.json({ projects: filteredProjects });
     } catch (err) {
         console.error("Error fetching projects:", err);
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
