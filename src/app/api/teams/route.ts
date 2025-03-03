@@ -3,6 +3,11 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { createClient } from '@/lib/supabase';
+import {
+	defaultAdminPermissions,
+	defaultEditorPermissions,
+	defaultViewerPermissions,
+} from '@/lib/permissions';
 
 export async function GET() {
 	const supabase = await createClient();
@@ -116,10 +121,25 @@ export async function POST(request: Request) {
 						data: [
 							{
 								name: 'Admin',
-								permissions: JSON.stringify({ '*': true }),
+								permissions: JSON.stringify(
+									defaultAdminPermissions
+								),
+								canDelete: false,
 							},
-							{ name: 'Editor', permissions: JSON.stringify({}) },
-							{ name: 'Viewer', permissions: JSON.stringify({}) },
+							{
+								name: 'Editor',
+								permissions: JSON.stringify(
+									defaultEditorPermissions
+								),
+								canDelete: false,
+							},
+							{
+								name: 'Viewer',
+								permissions: JSON.stringify(
+									defaultViewerPermissions
+								),
+								canDelete: false,
+							},
 						],
 					},
 				},

@@ -9,17 +9,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
-import { Checkbox } from '@/components/ui/checkbox';
+import { availablePermissions, permissionLabels } from '@/lib/permissions';
 import {
-	availablePermissions,
-	permissionLabels,
-	permissionCategories,
-} from '@/lib/permissions';
-import { SquareChevronDownIcon, SquareChevronUpIcon } from 'lucide-react';
+	Loader,
+	SquareChevronDownIcon,
+	SquareChevronUpIcon,
+	Trash,
+} from 'lucide-react';
 
 type TeamRole = {
 	id: string;
 	name: string;
+	canDelete: boolean;
 	permissions: Record<string, boolean>;
 };
 
@@ -125,6 +126,27 @@ export default function TeamRolesPage() {
 		}));
 	};
 
+	// Role Deletion Mutation
+	const deleteRole = useMutation({
+		mutationFn: async (roleId: string) => {
+			await axios.delete(`/api/teams/${teamId}/roles/${roleId}`);
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ['teamRoles', teamId] });
+			toast({
+				title: 'Role Deleted',
+				description: 'The role has been successfully deleted.',
+			});
+		},
+		onError: () => {
+			toast({
+				title: 'Error',
+				description: 'Failed to delete the role.',
+				variant: 'destructive',
+			});
+		},
+	});
+
 	const groupedPermissions: Record<string, typeof availablePermissions> = {};
 	availablePermissions.forEach((perm) => {
 		if (!groupedPermissions[perm.category]) {
@@ -145,8 +167,22 @@ export default function TeamRolesPage() {
 			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 				{roles?.map((role) => (
 					<Card key={role.id} onClick={() => handleEditRole(role)}>
-						<CardHeader>
+						<CardHeader className="flex flex-row justify-between">
 							<CardTitle>{role.name}</CardTitle>
+							{role.canDelete && (
+								<Button
+									variant="destructive"
+									size="icon"
+									onClick={() => deleteRole.mutate(role.id)}
+									disabled={deleteRole.isPending}
+								>
+									{deleteRole.isPending ? (
+										<Loader className="animate-spin w-4 h-4" />
+									) : (
+										<Trash className="w-4 h-4" />
+									)}
+								</Button>
+							)}
 						</CardHeader>
 						<CardContent>
 							<ul className="text-sm">

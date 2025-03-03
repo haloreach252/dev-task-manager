@@ -303,3 +303,11 @@ export const permissionLevels: Record<string, number> = Object.fromEntries(
 export const permissionCategories: Record<string, string> = Object.fromEntries(
 	availablePermissions.map((perm) => [perm.key, perm.category])
 );
+
+export const defaultAdminPermissions = {
+	'*': true,
+};
+
+export const defaultEditorPermissions = {};
+
+export const defaultViewerPermissions = {};

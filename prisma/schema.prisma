@@ -15,11 +15,11 @@ enum BoardVisibility {
 }
 
 model SecurityLogs {
-  id String @id @default(uuid())
-  userId String
-  teamId String
+  id              String   @id @default(uuid())
+  userId          String
+  teamId          String
   actionAttempted String
-  timestamp DateTime @default(now())
+  timestamp       DateTime @default(now())
 }
 
 model User {
@@ -72,11 +72,12 @@ model ContactSubmission {
 }
 
 model TeamRole {
-  id          String @id @default(uuid())
+  id          String  @id @default(uuid())
   name        String // e.g. "Admin", "Editor", "Viewer" or custom role name
   permissions String // JSON string to convert from
-  team        Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  team        Team    @relation(fields: [teamId], references: [id], onDelete: Cascade)
   teamId      String
+  canDelete   Boolean @default(true)
 
   // Inverse relation to members using this role
   teamMembers TeamMember[]

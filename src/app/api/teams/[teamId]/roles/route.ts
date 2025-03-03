@@ -10,6 +10,7 @@ import {
 type Role = {
 	id: string;
 	name: string;
+	canDelete: boolean;
 	permissions: Record<string, any>;
 };
 
@@ -37,6 +38,7 @@ export async function GET(
 			const fixedRole = {
 				id: role.id,
 				name: role.name,
+				canDelete: role.canDelete,
 				permissions: JSON.parse(role.permissions),
 			};
 			transformedRoles.push(fixedRole);
