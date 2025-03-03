@@ -27,15 +27,26 @@ export async function POST(
 	
 	// TODO: Change this to use roleId instead of a set name
 	//       so that the invite can be sent with a custom role
-	const { email, role = 'Viewer' } = await request.json();
+	let role: string | undefined;
+	const { email, roleId } = await request.json();
 	const token = nanoid(32);
+
+	if (!roleId) {
+		const defaultRole = await prisma.teamRole.findFirst({
+			where: { teamId, name: "Viewer" }
+		});
+
+		role = defaultRole?.id;
+	} else {
+		role = roleId;
+	}
 
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	const invite = await prisma.invite.create({
 		data: {
 			email,
 			token,
-			role,
+			role: role || "",
 			status: 'Pending',
 			teamId,
 		},

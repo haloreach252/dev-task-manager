@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/app/teams/[teamId]/management/InviteDialog.tsx
 
 'use client';
@@ -14,16 +16,25 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { type TeamMember } from '@/lib/types';
+import { usePermissions } from '@/hooks/usePermissions';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useQuery } from '@tanstack/react-query';
+
+type TeamRole = {
+	id: string;
+	name: string;
+}
 
 export default function InviteDialog(props: {
 	teamId: string;
-	setMembers: (arg0: TeamMember[]) => void;
+	setMembers: (arg0: any) => void;
 }) {
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
 	const [inviteEmail, setInviteEmail] = useState('');
+	const [roleId, setRoleId] = useState<string | null>(null);
 	const [inviteLink, setInviteLink] = useState('');
 	const { toast } = useToast();
+	const { hasPermission } = usePermissions(props.teamId);
 
 	const handleInvite = async () => {
 		if (!inviteEmail) return;
@@ -31,6 +42,7 @@ export default function InviteDialog(props: {
 		try {
 			const res = await axios.post(`/api/teams/${props.teamId}/invite`, {
 				email: inviteEmail,
+				roleId,
 			});
 			setInviteLink(res.data.inviteLink);
 			setInviteEmail('');
@@ -73,6 +85,19 @@ export default function InviteDialog(props: {
 		}
 	};
 
+	// Fetch roles
+	const {
+		data: roles,
+		isLoading: rolesLoading,
+		isError: rolesError = false, // Prevents undefined variable error
+	} = useQuery({
+		queryKey: ['teamRoles', props.teamId],
+		queryFn: async () => {
+			const res = await axios.get(`/api/teams/${props.teamId}/roles`);
+			return res.data.roles as TeamRole[];
+		},
+	});
+
 	return (
 		<>
 			<Button className="mt-6" onClick={() => setIsDialogOpen(true)}>
@@ -91,6 +116,29 @@ export default function InviteDialog(props: {
 						value={inviteEmail}
 						onChange={(e) => setInviteEmail(e.target.value)}
 					/>
+
+					{/* Role Selector - Only show if user can manage team */}
+					{hasPermission(props.teamId, 'manageMembers') && (
+						<Select
+							onValueChange={(newRoleId) =>
+								setRoleId(newRoleId)
+							}
+						>
+							<SelectTrigger>
+								<SelectValue placeholder="Select Role" />
+							</SelectTrigger>
+							<SelectContent>
+								{roles?.map((role) => (
+									<SelectItem
+										key={role.id}
+										value={role.id}
+									>
+										{role.name}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					)}
 
 					{inviteLink && (
 						<div className="mt-4">

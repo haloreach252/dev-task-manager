@@ -13,7 +13,7 @@ import {
 	SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import InviteDialog from './InviteDialog';
+import InviteDialog from '../InviteDialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { usePermissions } from '@/hooks/usePermissions';
 import Link from 'next/link';

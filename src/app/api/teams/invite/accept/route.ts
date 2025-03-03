@@ -54,7 +54,7 @@ export async function POST(request: Request) {
 
 	// Fetch the team role
 	const teamRole = await prisma.teamRole.findFirst({
-		where: { teamId: invite.teamId, name: invite.role },
+		where: { teamId: invite.teamId, id: invite.role },
 	});
 
 	if (!teamRole) {
