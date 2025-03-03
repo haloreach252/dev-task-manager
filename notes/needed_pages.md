@@ -2,9 +2,7 @@
 
 ## General
 
--   /features
 -   /docs
--   /contact
 -   /demo
 
 ## Development tracking
