@@ -2,14 +2,37 @@
 
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { checkPermissions } from '@/lib/permissions';
+import { createClient } from '@/lib/supabase';
 
 export async function PUT(
 	req: Request,
 	props: { params: Promise<{ boardId: string; columnId: string }> }
 ) {
 	const params = await props.params;
-	const { columnId } = params;
+	const { boardId, columnId } = params;
 	const { targetColumnId } = await req.json();
+
+	const supabase = await createClient();
+	const { data: { user }, error } = await supabase.auth.getUser();
+
+	if (!user || error) {
+		return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+	}
+
+	const project = await prisma.project.findFirst({
+		where: { boards: { some: { id: boardId }}}
+	})
+
+	if (!project) {
+		return NextResponse.json({ error: "Project not found" }, { status: 404})
+	}
+
+	const hasPermission = await checkPermissions(user.id, project.teamId, ['editColumns']);
+
+	if (!hasPermission) {
+		return NextResponse.json({ error: "Forbidden: You do not have permission to edit columns" }, { status: 403 });
+	}
 
 	try {
 		// Fetch both the dragged and target columns

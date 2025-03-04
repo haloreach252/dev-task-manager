@@ -3,7 +3,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase';
 import prisma from '@/lib/prisma';
-import { getUserPermissions } from '@/lib/permissions';
+import { checkPermissions, getUserPermissions } from '@/lib/permissions';
 
 export async function GET(req: Request, props: { params: Promise<{ projectId: string }> }) {
     const supabase = await createClient();
@@ -23,9 +23,9 @@ export async function GET(req: Request, props: { params: Promise<{ projectId: st
         return NextResponse.json({ error: "Project not found" }, { status: 404 })
     }
 
-    const userPermissions = await getUserPermissions(user.id, project.teamId);
+    const hasPermission = await checkPermissions(user.id, project.teamId, ['viewProjects']);
 
-    if (!userPermissions['viewProjects'] && !userPermissions['*']) {
+    if (!hasPermission) {
         return NextResponse.json({ error: "Forbidden: You do not have permission to view this project" }, { status: 403 });
     }
 

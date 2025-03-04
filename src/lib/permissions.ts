@@ -47,6 +47,24 @@ function deepMerge(rolePerms: any, customPerms: any) {
 	return { ...rolePerms, ...customPerms };
 }
 
+export async function checkPermissions(userId: string, teamId: string, permissionsToCheck: string[]): Promise<boolean> {
+	const userPermissions = await getUserPermissions(userId, teamId);
+
+	let hasAllPermissions = true;
+	for(const permission of permissionsToCheck) {
+		if (!userPermissions[permission]) {
+			hasAllPermissions = false;
+			break;
+		}
+	}
+
+	if (userPermissions['*']) {
+		hasAllPermissions = true;
+	}
+
+	return hasAllPermissions;
+}
+
 /*
  * Permission settings:
  * This area will contain all the permissions in the app, as well as helper

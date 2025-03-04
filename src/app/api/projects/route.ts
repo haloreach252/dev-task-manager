@@ -3,7 +3,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase";
 import prisma from "@/lib/prisma";
-import { getUserPermissions } from "@/lib/permissions";
+import { checkPermissions, getUserPermissions } from "@/lib/permissions";
 import { type Project } from "@prisma/client";
 
 export async function GET() {
@@ -67,9 +67,9 @@ export async function GET() {
         const filteredProjects = [];
 
         for (const project of projectsWithCounts) {
-            const userPermissions = await getUserPermissions(userId, project.teamId);
+            const hasPermission = await checkPermissions(userId, project.teamId, ['viewProjects']);
 
-            if (userPermissions['viewProjects'] || userPermissions['*']) {
+            if (hasPermission) {
                 filteredProjects.push(project);
             }
         }
@@ -91,6 +91,12 @@ export async function POST(request: Request) {
 
     try {
         const { name, description, teamId } = await request.json();
+
+        const hasPermission = await checkPermissions(user.id, teamId, ['createProjects']);
+
+        if (!hasPermission) {
+            return NextResponse.json({ error: "Forbidden: You do not have permission to create projects with that team"}, { status: 403 });
+        }
 
         if (!name || !teamId) {
             return NextResponse.json({ error: "Name and Team ID are required" }, { status: 400 });

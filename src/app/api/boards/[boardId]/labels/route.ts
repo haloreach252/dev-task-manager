@@ -2,10 +2,33 @@
 
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { checkPermissions } from "@/lib/permissions";
+import { createClient } from "@/lib/supabase";
 
 // Fetch all labels for a board
 export async function GET(request: Request, props: { params: Promise<{ boardId: string }>}) {
     const { boardId } = await props.params;
+
+	const supabase = await createClient();
+	const { data: { user }, error } = await supabase.auth.getUser();
+
+	if (!user || error) {
+		return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+	}
+
+	const project = await prisma.project.findFirst({
+		where: { boards: { some: { id: boardId }}}
+	})
+
+	if (!project) {
+		return NextResponse.json({ error: "Project not found" }, { status: 404})
+	}
+
+	const hasPermission = await checkPermissions(user.id, project.teamId, ['viewBoards']);
+
+	if (!hasPermission) {
+		return NextResponse.json({ error: "Forbidden: You do not have permission to view this boards details" }, { status: 403 });
+	}
 
     try {
         const labels = await prisma.label.findMany({
@@ -28,6 +51,27 @@ export async function POST(
 	const { boardId } = await props.params;
 	const { name, backgroundColor } = await request.json();
 
+	const supabase = await createClient();
+	const { data: { user }, error } = await supabase.auth.getUser();
+
+	if (!user || error) {
+		return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+	}
+
+	const project = await prisma.project.findFirst({
+		where: { boards: { some: { id: boardId }}}
+	})
+
+	if (!project) {
+		return NextResponse.json({ error: "Project not found" }, { status: 404})
+	}
+
+	const hasPermission = await checkPermissions(user.id, project.teamId, ['createLabels']);
+
+	if (!hasPermission) {
+		return NextResponse.json({ error: "Forbidden: You do not have permission to create labels" }, { status: 403 });
+	}
+
 	try {
 		const newLabel = await prisma.label.create({
 			data: {
@@ -49,8 +93,29 @@ export async function PATCH(
 	request: Request,
 	props: { params: Promise<{ boardId: string; labelId: string }> }
 ) {
-	const { labelId } = await props.params;
+	const { boardId, labelId } = await props.params;
 	const { name, backgroundColor } = await request.json();
+
+	const supabase = await createClient();
+	const { data: { user }, error } = await supabase.auth.getUser();
+
+	if (!user || error) {
+		return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+	}
+
+	const project = await prisma.project.findFirst({
+		where: { boards: { some: { id: boardId }}}
+	})
+
+	if (!project) {
+		return NextResponse.json({ error: "Project not found" }, { status: 404})
+	}
+
+	const hasPermission = await checkPermissions(user.id, project.teamId, ['editLabels']);
+
+	if (!hasPermission) {
+		return NextResponse.json({ error: "Forbidden: You do not have permission to edit labels" }, { status: 403 });
+	}
 
 	try {
 		const updatedLabel = await prisma.label.update({
@@ -73,7 +138,28 @@ export async function DELETE(
 	request: Request,
 	props: { params: Promise<{ boardId: string; labelId: string }> }
 ) {
-	const { labelId } = await props.params;
+	const { boardId, labelId } = await props.params;
+
+	const supabase = await createClient();
+	const { data: { user }, error } = await supabase.auth.getUser();
+
+	if (!user || error) {
+		return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+	}
+
+	const project = await prisma.project.findFirst({
+		where: { boards: { some: { id: boardId }}}
+	})
+
+	if (!project) {
+		return NextResponse.json({ error: "Project not found" }, { status: 404})
+	}
+
+	const hasPermission = await checkPermissions(user.id, project.teamId, ['deleteLabels']);
+
+	if (!hasPermission) {
+		return NextResponse.json({ error: "Forbidden: You do not have permission to delete labels" }, { status: 403 });
+	}
 
 	try {
 		await prisma.label.delete({
