@@ -1,28 +1,45 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase';
-import prisma from '@/lib/prisma';
+import { supabase } from '@/lib/supabase-db';
 import {
 	getUserPermissions,
 	getUserMaxPermissionLevel,
 	permissionLevels,
+	type Permissions,
 } from '@/lib/permissions';
+import type { Database } from '@/lib/supabase-db';
+
+type TeamRole = Database['public']['Tables']['team_roles']['Row'];
 
 type Role = {
 	id: string;
 	name: string;
 	canDelete: boolean;
-	permissions: Record<string, any>;
+	permissions: Permissions;
 };
+
+// Helper function to convert nested permissions to a flat boolean record
+function flattenPermissions(permissions: Permissions): Record<string, boolean> {
+	const result: Record<string, boolean> = {};
+	for (const [key, value] of Object.entries(permissions)) {
+		if (typeof value === 'boolean') {
+			result[key] = value;
+		} else if (typeof value === 'object') {
+			Object.assign(result, flattenPermissions(value));
+		}
+	}
+	return result;
+}
 
 export async function GET(
 	req: Request,
 	props: { params: Promise<{ teamId: string }> }
 ) {
-	const supabase = await createClient();
+	const supabaseAuth = await createClient();
 	const {
 		data: { user },
 		error,
-	} = await supabase.auth.getUser();
+	} = await supabaseAuth.auth.getUser();
 
 	if (!user || error) {
 		return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -31,18 +48,25 @@ export async function GET(
 	const { teamId } = await props.params;
 
 	try {
-		const roles = await prisma.teamRole.findMany({ where: { teamId } });
+		const { data: roles, error: rolesError } = await supabase
+			.from('team_roles')
+			.select('*')
+			.eq('team_id', teamId);
 
-		const transformedRoles: Role[] = [];
-		roles.forEach((role) => {
-			const fixedRole = {
-				id: role.id,
-				name: role.name,
-				canDelete: role.canDelete,
-				permissions: JSON.parse(role.permissions),
-			};
-			transformedRoles.push(fixedRole);
-		});
+		if (rolesError) {
+			console.error('Error fetching team roles:', rolesError);
+			return NextResponse.json(
+				{ error: 'Internal Server Error' },
+				{ status: 500 }
+			);
+		}
+
+		const transformedRoles: Role[] = (roles as TeamRole[]).map((role) => ({
+			id: role.id,
+			name: role.name,
+			canDelete: role.can_delete,
+			permissions: JSON.parse(role.permissions) as Permissions,
+		}));
 
 		return NextResponse.json({ roles: transformedRoles });
 	} catch (err) {
@@ -61,11 +85,11 @@ export async function POST(
 	const { teamId } = await props.params;
 	const { name, permissions } = await req.json();
 
-	const supabase = await createClient();
+	const supabaseAuth = await createClient();
 	const {
 		data: { user },
 		error,
-	} = await supabase.auth.getUser();
+	} = await supabaseAuth.auth.getUser();
 
 	if (!user || error) {
 		return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -73,7 +97,9 @@ export async function POST(
 
 	// Get user's permissions
 	const userPermissions = await getUserPermissions(user.id, teamId);
-	const userMaxLevel = getUserMaxPermissionLevel(userPermissions);
+	const userMaxLevel = getUserMaxPermissionLevel(
+		flattenPermissions(userPermissions)
+	);
 
 	// Ensure user has `manageRoles`
 	if (!userPermissions['manageRoles'] && !userPermissions['*']) {
@@ -84,8 +110,8 @@ export async function POST(
 	}
 
 	// Validate new role permissions
-	const newPermissions = JSON.parse(permissions);
-	for (const perm of Object.keys(newPermissions)) {
+	const newPermissions = JSON.parse(permissions) as Permissions;
+	for (const perm of Object.keys(flattenPermissions(newPermissions))) {
 		if ((permissionLevels[perm] || 0) > userMaxLevel) {
 			return NextResponse.json(
 				{
@@ -97,13 +123,26 @@ export async function POST(
 	}
 
 	try {
-		const newTeamRole = await prisma.teamRole.create({
-			data: {
+		const { data: newTeamRole, error: createError } = await supabase
+			.from('team_roles')
+			.insert({
 				name,
-				permissions,
-				teamId,
-			},
-		});
+				permissions: JSON.stringify(newPermissions),
+				team_id: teamId,
+				can_delete: true,
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString(),
+			})
+			.select()
+			.single();
+
+		if (createError) {
+			console.error('Error creating team role:', createError);
+			return NextResponse.json(
+				{ error: 'Internal Server Error' },
+				{ status: 500 }
+			);
+		}
 
 		return NextResponse.json({ newTeamRole });
 	} catch (error) {

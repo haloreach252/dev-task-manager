@@ -1,7 +1,8 @@
 // src/app/api/boards/[boardId]/columns/[columnId]/reorder/route.ts
 
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { supabase } from '@/lib/supabase-db';
+import { createClient } from '@/lib/supabase';
 
 export async function PUT(
 	req: Request,
@@ -13,10 +14,19 @@ export async function PUT(
 
 	try {
 		// Fetch both the dragged and target columns
-		const [draggedColumn, targetColumn] = await Promise.all([
-			prisma.column.findUnique({ where: { id: columnId } }),
-			prisma.column.findUnique({ where: { id: targetColumnId } }),
-		]);
+		const [{ data: draggedColumn }, { data: targetColumn }] =
+			await Promise.all([
+				supabase
+					.from('columns')
+					.select('*')
+					.eq('id', columnId)
+					.single(),
+				supabase
+					.from('columns')
+					.select('*')
+					.eq('id', targetColumnId)
+					.single(),
+			]);
 
 		// Validate existence
 		if (!draggedColumn || !targetColumn) {
@@ -27,16 +37,19 @@ export async function PUT(
 		}
 
 		// Swap orders between dragged and target columns
-		await prisma.$transaction([
-			prisma.column.update({
-				where: { id: draggedColumn.id },
-				data: { order: targetColumn.order },
-			}),
-			prisma.column.update({
-				where: { id: targetColumn.id },
-				data: { order: draggedColumn.order },
-			}),
-		]);
+		const { error: updateError } = await supabase.rpc(
+			'swap_column_orders',
+			{
+				column_id_1: draggedColumn.id,
+				column_id_2: targetColumn.id,
+				order_1: targetColumn.order,
+				order_2: draggedColumn.order,
+			}
+		);
+
+		if (updateError) {
+			throw updateError;
+		}
 
 		return NextResponse.json({
 			message: 'Columns reordered successfully.',

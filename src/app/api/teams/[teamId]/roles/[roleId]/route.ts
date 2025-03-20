@@ -1,12 +1,29 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase-db';
 import {
 	getUserMaxPermissionLevel,
 	getUserPermissions,
 	permissionLevels,
+	type Permissions,
 } from '@/lib/permissions';
-import prisma from '@/lib/prisma';
+import type { Database } from '@/lib/supabase-db';
+
+type TeamRole = Database['public']['Tables']['team_roles']['Row'];
+
+// Helper function to convert nested permissions to a flat boolean record
+function flattenPermissions(permissions: Permissions): Record<string, boolean> {
+	const result: Record<string, boolean> = {};
+	for (const [key, value] of Object.entries(permissions)) {
+		if (typeof value === 'boolean') {
+			result[key] = value;
+		} else if (typeof value === 'object') {
+			Object.assign(result, flattenPermissions(value));
+		}
+	}
+	return result;
+}
 
 export async function PATCH(
 	req: Request,
@@ -15,18 +32,20 @@ export async function PATCH(
 	const { teamId, roleId } = await props.params;
 	const { name, permissions } = await req.json();
 
-	const supabase = await createClient();
+	const supabaseAuth = await createClient();
 	const {
 		data: { user },
 		error,
-	} = await supabase.auth.getUser();
+	} = await supabaseAuth.auth.getUser();
 
 	if (!user || error) {
 		return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
 	const userPermissions = await getUserPermissions(user.id, teamId);
-	const userMaxLevel = getUserMaxPermissionLevel(userPermissions);
+	const userMaxLevel = getUserMaxPermissionLevel(
+		flattenPermissions(userPermissions)
+	);
 
 	if (!userPermissions['manageRoles'] && !userPermissions['*']) {
 		return NextResponse.json(
@@ -35,8 +54,8 @@ export async function PATCH(
 		);
 	}
 
-	const newPermissions = JSON.parse(permissions);
-	for (const perm of Object.keys(newPermissions)) {
+	const newPermissions = JSON.parse(permissions) as Permissions;
+	for (const perm of Object.keys(flattenPermissions(newPermissions))) {
 		if ((permissionLevels[perm] || 0) > userMaxLevel) {
 			return NextResponse.json(
 				{
@@ -48,13 +67,29 @@ export async function PATCH(
 	}
 
 	try {
-		const updatedRole = await prisma.teamRole.update({
-			where: { id: roleId },
-			data: { name, permissions },
-		});
+		const { data: updatedRole, error: updateError } = await supabase
+			.from('team_roles')
+			.update({
+				name,
+				permissions: JSON.stringify(newPermissions),
+				updated_at: new Date().toISOString(),
+			})
+			.eq('id', roleId)
+			.eq('team_id', teamId)
+			.select()
+			.single();
+
+		if (updateError) {
+			console.error('Error updating role:', updateError);
+			return NextResponse.json(
+				{ error: 'Internal Server Error' },
+				{ status: 500 }
+			);
+		}
 
 		return NextResponse.json({ updatedRole });
 	} catch (error) {
+		console.error('Error in PATCH /roles/[roleId]:', error);
 		return NextResponse.json(
 			{ error: 'Internal Server Error' },
 			{ status: 500 }
@@ -68,18 +103,20 @@ export async function DELETE(
 ) {
 	const { teamId, roleId } = await props.params;
 
-	const supabase = await createClient();
+	const supabaseAuth = await createClient();
 	const {
 		data: { user },
 		error,
-	} = await supabase.auth.getUser();
+	} = await supabaseAuth.auth.getUser();
 
 	if (!user || error) {
 		return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
 	const userPermissions = await getUserPermissions(user.id, teamId);
-	const userMaxLevel = getUserMaxPermissionLevel(userPermissions);
+	const userMaxLevel = getUserMaxPermissionLevel(
+		flattenPermissions(userPermissions)
+	);
 
 	if (!userPermissions['manageRoles'] && !userPermissions['*']) {
 		return NextResponse.json(
@@ -88,17 +125,21 @@ export async function DELETE(
 		);
 	}
 
-	const roleToDelete = await prisma.teamRole.findUnique({
-		where: { id: roleId, teamId },
-	});
+	// Get the role to delete
+	const { data: roleToDelete, error: roleError } = await supabase
+		.from('team_roles')
+		.select('*')
+		.eq('id', roleId)
+		.eq('team_id', teamId)
+		.single();
 
-	if (!roleToDelete) {
+	if (roleError || !roleToDelete) {
 		return NextResponse.json({ error: 'Role not found' }, { status: 404 });
 	}
 
-	const rolePermissions = JSON.parse(roleToDelete.permissions) || {};
-
-	const roleMaxLevel = getUserMaxPermissionLevel(rolePermissions) || 0;
+	const rolePermissions = JSON.parse(roleToDelete.permissions) as Permissions;
+	const roleMaxLevel =
+		getUserMaxPermissionLevel(flattenPermissions(rolePermissions)) || 0;
 
 	if (userMaxLevel <= roleMaxLevel && !userPermissions['*']) {
 		return NextResponse.json(
@@ -107,11 +148,21 @@ export async function DELETE(
 		);
 	}
 
-	const assignedMembers = await prisma.teamMember.count({
-		where: { teamRoleId: roleId },
-	});
+	// Check if the role is assigned to any members
+	const { count, error: countError } = await supabase
+		.from('team_members')
+		.select('*', { count: 'exact', head: true })
+		.eq('team_role_id', roleId);
 
-	if (assignedMembers > 0) {
+	if (countError) {
+		console.error('Error checking role assignments:', countError);
+		return NextResponse.json(
+			{ error: 'Internal Server Error' },
+			{ status: 500 }
+		);
+	}
+
+	if (count && count > 0) {
 		return NextResponse.json(
 			{ error: 'Role is in use and cannot be deleted.' },
 			{ status: 400 }
@@ -119,16 +170,26 @@ export async function DELETE(
 	}
 
 	try {
-		await prisma.teamRole.delete({
-			where: { id: roleId, teamId },
-		});
+		const { error: deleteError } = await supabase
+			.from('team_roles')
+			.delete()
+			.eq('id', roleId)
+			.eq('team_id', teamId);
+
+		if (deleteError) {
+			console.error('Error deleting role:', deleteError);
+			return NextResponse.json(
+				{ error: 'Internal Server Error' },
+				{ status: 500 }
+			);
+		}
 
 		return NextResponse.json(
 			{ message: 'Role deleted successfully' },
 			{ status: 200 }
 		);
 	} catch (error) {
-		console.error(error);
+		console.error('Error in DELETE /roles/[roleId]:', error);
 		return NextResponse.json(
 			{ error: 'Internal Server Error' },
 			{ status: 500 }

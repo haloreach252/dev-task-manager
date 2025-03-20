@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { supabase } from '@/lib/supabase-db';
 
 const RATE_LIMIT = 5 * 60 * 1000; // 5 minutes
 const rateLimitMap = new Map(); // Temporary rate-limiting storage
@@ -29,9 +29,22 @@ export async function POST(req: Request) {
 		}
 
 		// Save to database
-		const submission = await prisma.ContactSubmission.create({
-			data: { name, email, message },
-		});
+		const { error: insertError } = await supabase
+			.from('contact_submissions')
+			.insert({
+				name,
+				email,
+				message,
+				created_at: new Date().toISOString(),
+			});
+
+		if (insertError) {
+			console.error('Error inserting contact submission:', insertError);
+			return NextResponse.json(
+				{ error: 'Internal Server Error' },
+				{ status: 500 }
+			);
+		}
 
 		// Update rate limit tracking
 		rateLimitMap.set(ip, now);

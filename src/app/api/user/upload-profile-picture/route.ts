@@ -3,14 +3,14 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase';
-import prisma from '@/lib/prisma';
+import { supabase } from '@/lib/supabase-db';
 
 export async function POST(request: Request) {
-	const supabase = await createClient();
+	const supabaseAuth = await createClient();
 	const {
 		data: { user },
 		error,
-	} = await supabase.auth.getUser();
+	} = await supabaseAuth.auth.getUser();
 
 	if (error || !user) {
 		return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
 	const filePath = `${user.id}.${fileExt}`;
 
 	// Upload to supabase storage
-	const { data: storageData, error: uploadError } = await supabase.storage
+	const { data: storageData, error: uploadError } = await supabaseAuth.storage
 		.from('profile-pictures')
 		.upload(filePath, file, {
 			upsert: true,
@@ -48,15 +48,23 @@ export async function POST(request: Request) {
 	}
 
 	// Get the public URL
-	const { data: publicUrlData } = supabase.storage
+	const { data: publicUrlData } = supabaseAuth.storage
 		.from('profile-pictures')
 		.getPublicUrl(filePath);
 
-	// Update user's profilePicture in Prisma
-	await prisma.user.update({
-		where: { id: user.id },
-		data: { profilePicture: publicUrlData.publicUrl },
-	});
+	// Update user's profilePicture in Supabase
+	const { error: updateError } = await supabase
+		.from('users')
+		.update({ profile_picture: publicUrlData.publicUrl })
+		.eq('id', user.id);
+
+	if (updateError) {
+		console.error('Update error:', updateError);
+		return NextResponse.json(
+			{ error: 'Failed to update profile picture' },
+			{ status: 500 }
+		);
+	}
 
 	return NextResponse.json({ profilePicture: publicUrlData.publicUrl });
 }

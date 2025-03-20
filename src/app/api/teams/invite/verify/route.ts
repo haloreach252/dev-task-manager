@@ -6,8 +6,17 @@ import type { Database } from '@/lib/supabase-db';
 type Invite = Database['public']['Tables']['invites']['Row'];
 type TeamRole = Database['public']['Tables']['team_roles']['Row'];
 
-export async function POST(request: Request) {
-	const { token } = await request.json();
+export async function GET(request: Request) {
+	const { searchParams } = new URL(request.url);
+	const token = searchParams.get('token');
+
+	if (!token) {
+		return NextResponse.json(
+			{ error: 'Token is required' },
+			{ status: 400 }
+		);
+	}
+
 	const supabaseAuth = await createClient();
 
 	const {
@@ -22,7 +31,16 @@ export async function POST(request: Request) {
 	// Fetch the invite
 	const { data: invite, error: inviteError } = await supabase
 		.from('invites')
-		.select('*')
+		.select(
+			`
+			*,
+			team_roles (
+				id,
+				name,
+				permissions
+			)
+		`
+		)
 		.eq('token', token)
 		.single();
 
@@ -70,55 +88,19 @@ export async function POST(request: Request) {
 		);
 	}
 
-	// Fetch the team role
-	const { data: teamRole, error: roleError } = await supabase
-		.from('team_roles')
-		.select('*')
-		.eq('team_id', invite.team_id)
-		.eq('id', invite.role)
-		.single();
-
-	if (roleError || !teamRole) {
+	// Check if invite is already accepted or rejected
+	if (invite.status !== 'Pending') {
 		return NextResponse.json(
-			{ error: 'Invalid team role. Contact the team admin.' },
+			{ error: 'Invite is no longer valid' },
 			{ status: 400 }
 		);
 	}
 
-	// Add user to the team
-	const { error: createError } = await supabase.from('team_members').insert({
-		user_id: user.id,
-		team_id: invite.team_id,
-		team_role_id: teamRole.id,
-		custom_permissions: '{}',
-		created_at: new Date().toISOString(),
-		updated_at: new Date().toISOString(),
-	});
-
-	if (createError) {
-		console.error('Error creating team member:', createError);
-		return NextResponse.json(
-			{ error: 'Internal Server Error' },
-			{ status: 500 }
-		);
-	}
-
-	// Update the invite status
-	const { error: updateError } = await supabase
-		.from('invites')
-		.update({
-			status: 'Accepted',
-			updated_at: new Date().toISOString(),
-		})
-		.eq('id', invite.id);
-
-	if (updateError) {
-		console.error('Error updating invite status:', updateError);
-		return NextResponse.json(
-			{ error: 'Internal Server Error' },
-			{ status: 500 }
-		);
-	}
-
-	return NextResponse.json({ message: 'Invite Accepted' }, { status: 200 });
+	return NextResponse.json(
+		{
+			invite,
+			message: 'Invite is valid',
+		},
+		{ status: 200 }
+	);
 }

@@ -1,16 +1,40 @@
-import prisma from './prisma';
+import { supabase } from './supabase-db';
 
-export async function getUserPermissions(userId: string, teamId: string) {
-	const teamMember = await prisma.teamMember.findUnique({
-		where: { userId_teamId: { userId, teamId } },
-		include: { teamRole: true },
-	});
+type PermissionValue = boolean | { [key: string]: PermissionValue };
+export type Permissions = Record<string, PermissionValue>;
 
-	if (!teamMember) return {};
+interface TeamMemberWithRole {
+	team_role: {
+		permissions: string;
+	} | null;
+	custom_permissions: string | null;
+}
+
+export async function getUserPermissions(
+	userId: string,
+	teamId: string
+): Promise<Permissions> {
+	const { data: teamMember, error } = await supabase
+		.from('team_members')
+		.select(
+			`
+			team_role:team_roles (
+				permissions
+			),
+			custom_permissions
+		`
+		)
+		.eq('user_id', userId)
+		.eq('team_id', teamId)
+		.single();
+
+	if (error || !teamMember) return {};
+
+	const member = teamMember as unknown as TeamMemberWithRole;
 
 	// Parse stored permissions
-	const rolePermissions = JSON.parse(teamMember.teamRole.permissions || '{}');
-	const customPermissions = JSON.parse(teamMember.customPermissions || '{}');
+	const rolePermissions = JSON.parse(member.team_role?.permissions || '{}');
+	const customPermissions = JSON.parse(member.custom_permissions || '{}');
 
 	// Merge role and custom permissions (custom overrides role)
 	return deepMerge(rolePermissions, customPermissions);
@@ -33,18 +57,32 @@ export async function logUnauthorizedAccess(
 	teamId: string,
 	action: string
 ) {
-	await prisma.securityLogs.create({
-		data: {
-			userId,
-			teamId,
-			actionAttempted: action,
-			timestamp: new Date(),
-		},
+	await supabase.from('security_logs').insert({
+		user_id: userId,
+		team_id: teamId,
+		action_attempted: action,
+		timestamp: new Date().toISOString(),
 	});
 }
 
-function deepMerge(rolePerms: any, customPerms: any) {
-	return { ...rolePerms, ...customPerms };
+// Helper function to deep merge objects
+function deepMerge(target: Permissions, source: Permissions): Permissions {
+	const output = { ...target };
+	for (const key in source) {
+		if (isObject(target[key]) && isObject(source[key])) {
+			output[key] = deepMerge(
+				target[key] as Record<string, PermissionValue>,
+				source[key] as Record<string, PermissionValue>
+			);
+		} else {
+			output[key] = source[key];
+		}
+	}
+	return output;
+}
+
+function isObject(item: unknown): item is Record<string, unknown> {
+	return item !== null && typeof item === 'object' && !Array.isArray(item);
 }
 
 /*
@@ -280,10 +318,10 @@ const boardPermissions: Permission[] = [
 	},
 	{
 		key: 'viewBoards',
-		label: "View Boards",
+		label: 'View Boards',
 		level: 1,
-		category: "Board"
-	}
+		category: 'Board',
+	},
 ];
 
 //{ key: '', label: '', level: 1, category: ''},
