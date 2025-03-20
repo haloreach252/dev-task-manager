@@ -1,36 +1,47 @@
 import { NextResponse } from 'next/server';
-import { type ApiError } from './types';
 
-export const createErrorResponse = (error: ApiError, status: number = 400) => {
+export type ApiError = {
+	code: string;
+	message: string;
+};
+
+export function createErrorResponse(error: ApiError, status: number = 400) {
 	return NextResponse.json(
-		{ success: false, error },
+		{
+			success: false,
+			error,
+		},
 		{
 			status,
 			headers: {
 				'Content-Type': 'application/json',
-				'Cache-Control': 'no-store, no-cache, must-revalidate',
-				'X-Content-Type-Options': 'nosniff',
-				'X-Frame-Options': 'DENY',
-				'X-XSS-Protection': '1; mode=block',
+				'Cache-Control':
+					'no-store, no-cache, must-revalidate, proxy-revalidate',
+				Pragma: 'no-cache',
+				Expires: '0',
 			},
 		}
 	);
-};
+}
 
-export const createSuccessResponse = <T>(data: T) => {
+export function createSuccessResponse<T>(data: T, status: number = 200) {
 	return NextResponse.json(
-		{ success: true, data },
 		{
+			success: true,
+			data,
+		},
+		{
+			status,
 			headers: {
 				'Content-Type': 'application/json',
-				'Cache-Control': 'no-store, no-cache, must-revalidate',
-				'X-Content-Type-Options': 'nosniff',
-				'X-Frame-Options': 'DENY',
-				'X-XSS-Protection': '1; mode=block',
+				'Cache-Control':
+					'no-store, no-cache, must-revalidate, proxy-revalidate',
+				Pragma: 'no-cache',
+				Expires: '0',
 			},
 		}
 	);
-};
+}
 
 export const validatePageNumber = (page: string | null): number => {
 	const parsedPage = parseInt(page || '1', 10);

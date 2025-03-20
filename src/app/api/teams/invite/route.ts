@@ -1,24 +1,23 @@
-// src/app/api/teams/[teamId]/invite/route.ts
-
 import { createClient } from '@/lib/supabase';
 import prisma from '@/lib/prisma';
-import { nanoid } from 'nanoid';
-import { getUserPermissions } from '@/lib/permissions';
-import {
-	validateCreateInvite,
-	type CreateInviteInput,
-	type InviteResponse,
-} from './types';
+import { z } from 'zod';
 import {
 	createErrorResponse,
 	createSuccessResponse,
 } from '@/app/api/shared/utils';
 import { rateLimit } from '@/lib/rate-limit';
+import { nanoid } from 'nanoid';
 
-export async function POST(
-	request: Request,
-	props: { params: Promise<{ teamId: string }> }
-) {
+const CreateInviteSchema = z.object({
+	teamId: z.string().min(1, 'Team ID is required'),
+	email: z.string().email('Invalid email address'),
+	role: z.string().min(1, 'Role is required'),
+	expiresIn: z.number().min(1).max(168).optional(), // Hours, max 1 week
+});
+
+type CreateInviteInput = z.infer<typeof CreateInviteSchema>;
+
+export async function POST(request: Request) {
 	try {
 		const supabase = await createClient();
 		const {
@@ -54,27 +53,77 @@ export async function POST(
 			);
 		}
 
-		const { teamId } = await props.params;
 		const body = await request.json();
 
 		// Validate input
-		const validationError = validateCreateInvite(body);
-		if (validationError) {
-			return createErrorResponse(validationError);
+		try {
+			CreateInviteSchema.parse(body);
+		} catch (error) {
+			if (error instanceof z.ZodError) {
+				return createErrorResponse(
+					{
+						code: 'VALIDATION_ERROR',
+						message: error.errors[0].message,
+					},
+					400
+				);
+			}
 		}
 
-		const { email, roleId, expiresIn = 24 } = body as CreateInviteInput;
+		const {
+			teamId,
+			email,
+			role,
+			expiresIn = 24,
+		} = body as CreateInviteInput;
 
-		// Get user's permissions
-		const userPermissions = await getUserPermissions(user.id, teamId);
+		// Check if user has permission to invite to this team
+		const teamMember = await prisma.teamMember.findFirst({
+			where: {
+				teamId,
+				userId: user.id,
+			},
+			include: {
+				teamRole: true,
+			},
+		});
 
-		if (!userPermissions['inviteMembers'] && !userPermissions['*']) {
+		if (!teamMember) {
 			return createErrorResponse(
 				{
 					code: 'FORBIDDEN',
-					message: 'Insufficient permissions to invite members',
+					message:
+						'You do not have permission to invite members to this team',
 				},
 				403
+			);
+		}
+
+		// Check if user has invite permissions
+		const permissions = JSON.parse(teamMember.teamRole.permissions);
+		if (!permissions.canInviteMembers) {
+			return createErrorResponse(
+				{
+					code: 'FORBIDDEN',
+					message:
+						'You do not have permission to invite members to this team',
+				},
+				403
+			);
+		}
+
+		// Check if the role exists and is valid for this team
+		const teamRole = await prisma.teamRole.findFirst({
+			where: { id: role, teamId },
+		});
+
+		if (!teamRole) {
+			return createErrorResponse(
+				{
+					code: 'INVALID_ROLE',
+					message: 'Invalid team role',
+				},
+				400
 			);
 		}
 
@@ -120,65 +169,24 @@ export async function POST(
 			);
 		}
 
-		// Get the role to assign
-		let role: string;
-		if (roleId) {
-			// Check if the role exists and belongs to this team
-			const teamRole = await prisma.teamRole.findFirst({
-				where: { id: roleId, teamId },
-			});
-
-			if (!teamRole) {
-				return createErrorResponse(
-					{
-						code: 'INVALID_ROLE',
-						message: 'Invalid team role',
-					},
-					400
-				);
-			}
-
-			role = roleId;
-		} else {
-			// Get the default Viewer role
-			const defaultRole = await prisma.teamRole.findFirst({
-				where: { teamId, name: 'Viewer' },
-			});
-
-			if (!defaultRole) {
-				return createErrorResponse(
-					{
-						code: 'DEFAULT_ROLE_NOT_FOUND',
-						message: 'Default Viewer role not found',
-					},
-					500
-				);
-			}
-
-			role = defaultRole.id;
-		}
-
 		// Create the invite
 		const invite = await prisma.invite.create({
 			data: {
-				email,
-				token: nanoid(32),
-				role,
-				status: 'Pending',
 				teamId,
+				email,
+				role,
+				token: nanoid(32),
+				status: 'Pending',
 				expiresAt: new Date(Date.now() + expiresIn * 60 * 60 * 1000),
 			},
 		});
 
-		const inviteLink = `${process.env.NEXT_PUBLIC_SITE_URL}/invite/${invite.token}`;
+		// TODO: Send invite email here
 
-		return createSuccessResponse<InviteResponse>(
-			{
-				inviteLink,
-				inviteId: invite.id,
-			},
-			201
-		);
+		return createSuccessResponse({
+			message: 'Invite created successfully',
+			inviteId: invite.id,
+		});
 	} catch (error) {
 		console.error('Error creating invite:', error);
 		return createErrorResponse(

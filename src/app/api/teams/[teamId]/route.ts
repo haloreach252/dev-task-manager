@@ -1,26 +1,38 @@
 // src/app/api/teams/[teamId]/route.ts
 
-import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
 import { createClient } from '@/lib/supabase';
+import prisma from '@/lib/prisma';
+import { validateUpdateTeam } from '../types';
+import {
+	createErrorResponse,
+	createSuccessResponse,
+} from '@/app/api/shared/utils';
+import { rateLimit } from '@/lib/rate-limit';
+
+const editPermissions = ['*', 'editTeam', 'editDescription'];
 
 export async function GET(
 	request: Request,
 	props: { params: Promise<{ teamId: string }> }
 ) {
-	const { teamId } = await props.params;
-
-	const supabase = await createClient();
-	const {
-		data: { user },
-		error,
-	} = await supabase.auth.getUser();
-
-	if (!user || error) {
-		return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-	}
-
 	try {
+		const { teamId } = await props.params;
+		const supabase = await createClient();
+		const {
+			data: { user },
+			error,
+		} = await supabase.auth.getUser();
+
+		if (!user || error) {
+			return createErrorResponse(
+				{
+					code: 'UNAUTHORIZED',
+					message: 'Unauthorized',
+				},
+				401
+			);
+		}
+
 		// Check if the user is a member of the team
 		const teamMember = await prisma.teamMember.findFirst({
 			where: { teamId, userId: user.id },
@@ -28,9 +40,12 @@ export async function GET(
 		});
 
 		if (!teamMember) {
-			return NextResponse.json(
-				{ error: 'Forbidden: You are not a member of this team' },
-				{ status: 403 }
+			return createErrorResponse(
+				{
+					code: 'FORBIDDEN',
+					message: 'You are not a member of this team',
+				},
+				403
 			);
 		}
 
@@ -45,11 +60,15 @@ export async function GET(
 			},
 		});
 
-		if (!team)
-			return NextResponse.json(
-				{ error: 'Team not found' },
-				{ status: 404 }
+		if (!team) {
+			return createErrorResponse(
+				{
+					code: 'NOT_FOUND',
+					message: 'Team not found',
+				},
+				404
 			);
+		}
 
 		// Parse permissions
 		const role = teamMember.teamRole;
@@ -63,40 +82,71 @@ export async function GET(
 			  )
 			: [];
 
-		return NextResponse.json({
+		return createSuccessResponse({
 			team: { ...team, permissions: permissions || [] },
 			members: team.members,
 			projects: team.projects,
 		});
-	} catch (err) {
-		console.error('Error fetching team:', err);
-		return NextResponse.json(
-			{ error: 'Internal Server Error' },
-			{ status: 500 }
+	} catch (error) {
+		console.error('Error fetching team:', error);
+		return createErrorResponse(
+			{
+				code: 'INTERNAL_ERROR',
+				message: 'Failed to fetch team',
+			},
+			500
 		);
 	}
 }
-
-const editPermissions = ['*', 'editTeam', 'editDescription'];
 
 export async function PUT(
 	request: Request,
 	props: { params: Promise<{ teamId: string }> }
 ) {
-	const { teamId } = await props.params;
-	const { name, description } = await request.json();
-
-	const supabase = await createClient();
-	const {
-		data: { user },
-		error,
-	} = await supabase.auth.getUser();
-
-	if (!user || error) {
-		return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-	}
-
 	try {
+		const { teamId } = await props.params;
+		const supabase = await createClient();
+		const {
+			data: { user },
+			error,
+		} = await supabase.auth.getUser();
+
+		if (!user || error) {
+			return createErrorResponse(
+				{
+					code: 'UNAUTHORIZED',
+					message: 'Unauthorized',
+				},
+				401
+			);
+		}
+
+		// Rate limit team updates
+		const rateLimitResult = await rateLimit(
+			user.id,
+			'update_team',
+			10,
+			3600
+		); // 10 updates per hour
+		if (!rateLimitResult.success) {
+			return createErrorResponse(
+				{
+					code: 'RATE_LIMIT_EXCEEDED',
+					message:
+						'Too many team update attempts. Please try again later.',
+				},
+				429
+			);
+		}
+
+		const body = await request.json();
+
+		// Validate input
+		const validationError = validateUpdateTeam(body);
+		if (validationError) {
+			return createErrorResponse(validationError);
+		}
+
 		// Fetch user role & permissions
 		const teamMember = await prisma.teamMember.findFirst({
 			where: { teamId, userId: user.id },
@@ -104,9 +154,12 @@ export async function PUT(
 		});
 
 		if (!teamMember) {
-			return NextResponse.json(
-				{ error: 'Not a team member' },
-				{ status: 403 }
+			return createErrorResponse(
+				{
+					code: 'FORBIDDEN',
+					message: 'Not a team member',
+				},
+				403
 			);
 		}
 
@@ -129,22 +182,28 @@ export async function PUT(
 		const canEdit = permissions.some((r) => editPermissions.includes(r));
 
 		if (!canEdit) {
-			return NextResponse.json(
-				{ error: 'You do not have permission to edit this team.' },
-				{ status: 403 }
+			return createErrorResponse(
+				{
+					code: 'FORBIDDEN',
+					message: 'You do not have permission to edit this team',
+				},
+				403
 			);
 		}
 
-		if (name) {
+		if (body.name) {
 			// Prevent duplicate team names only if `name` is changing
 			const existingTeam = await prisma.team.findFirst({
-				where: { name },
+				where: { name: body.name },
 			});
 
 			if (existingTeam && existingTeam.id !== teamId) {
-				return NextResponse.json(
-					{ error: 'A team with this name already exists.' },
-					{ status: 400 }
+				return createErrorResponse(
+					{
+						code: 'DUPLICATE_TEAM',
+						message: 'A team with this name already exists',
+					},
+					400
 				);
 			}
 		}
@@ -152,17 +211,20 @@ export async function PUT(
 		const updatedTeam = await prisma.team.update({
 			where: { id: teamId },
 			data: {
-				name: name || undefined,
-				description: description || undefined,
+				name: body.name,
+				description: body.description,
 			},
 		});
 
-		return NextResponse.json(updatedTeam, { status: 200 });
-	} catch (err) {
-		console.error('Error updating team name:', err);
-		return NextResponse.json(
-			{ error: 'Internal Server Error' },
-			{ status: 500 }
+		return createSuccessResponse(updatedTeam);
+	} catch (error) {
+		console.error('Error updating team:', error);
+		return createErrorResponse(
+			{
+				code: 'INTERNAL_ERROR',
+				message: 'Failed to update team',
+			},
+			500
 		);
 	}
 }
@@ -171,19 +233,42 @@ export async function DELETE(
 	request: Request,
 	props: { params: Promise<{ teamId: string }> }
 ) {
-	const { teamId } = await props.params;
-
-	const supabase = await createClient();
-	const {
-		data: { user },
-		error,
-	} = await supabase.auth.getUser();
-
-	if (!user || error) {
-		return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-	}
-
 	try {
+		const { teamId } = await props.params;
+		const supabase = await createClient();
+		const {
+			data: { user },
+			error,
+		} = await supabase.auth.getUser();
+
+		if (!user || error) {
+			return createErrorResponse(
+				{
+					code: 'UNAUTHORIZED',
+					message: 'Unauthorized',
+				},
+				401
+			);
+		}
+
+		// Rate limit team deletions
+		const rateLimitResult = await rateLimit(
+			user.id,
+			'delete_team',
+			3,
+			3600
+		); // 3 deletions per hour
+		if (!rateLimitResult.success) {
+			return createErrorResponse(
+				{
+					code: 'RATE_LIMIT_EXCEEDED',
+					message:
+						'Too many team deletion attempts. Please try again later.',
+				},
+				429
+			);
+		}
+
 		// Check if user is an admin
 		const teamMember = await prisma.teamMember.findFirst({
 			where: { teamId, userId: user.id },
@@ -191,9 +276,12 @@ export async function DELETE(
 		});
 
 		if (!teamMember || teamMember.teamRole.name !== 'Admin') {
-			return NextResponse.json(
-				{ error: 'You do not have permission to delete this team.' },
-				{ status: 403 }
+			return createErrorResponse(
+				{
+					code: 'FORBIDDEN',
+					message: 'You do not have permission to delete this team',
+				},
+				403
 			);
 		}
 
@@ -202,15 +290,15 @@ export async function DELETE(
 			where: { id: teamId },
 		});
 
-		return NextResponse.json(
-			{ message: 'Team deleted successfully' },
-			{ status: 200 }
-		);
-	} catch (err) {
-		console.error('Error deleting team:', err);
-		return NextResponse.json(
-			{ error: 'Internal Server Error' },
-			{ status: 500 }
+		return createSuccessResponse({ message: 'Team deleted successfully' });
+	} catch (error) {
+		console.error('Error deleting team:', error);
+		return createErrorResponse(
+			{
+				code: 'INTERNAL_ERROR',
+				message: 'Failed to delete team',
+			},
+			500
 		);
 	}
 }

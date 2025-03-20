@@ -1,33 +1,38 @@
 // src/app/api/teams/route.ts
 
-import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
 import { createClient } from '@/lib/supabase';
+import prisma from '@/lib/prisma';
 import {
 	defaultAdminPermissions,
 	defaultEditorPermissions,
 	defaultViewerPermissions,
 } from '@/lib/permissions';
+import { validateCreateTeam, type TeamWithPermissions } from './types';
+import { createErrorResponse, createSuccessResponse } from '../shared/utils';
+import { rateLimit } from '@/lib/rate-limit';
 
 export async function GET() {
-	const supabase = await createClient();
-	const {
-		data: { user },
-		error,
-	} = await supabase.auth.getUser();
-
-	if (!user || error) {
-		console.log(error ? error : 'No user found on teams page');
-		return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-	}
-
 	try {
-		const userId = user.id;
+		const supabase = await createClient();
+		const {
+			data: { user },
+			error,
+		} = await supabase.auth.getUser();
+
+		if (!user || error) {
+			return createErrorResponse(
+				{
+					code: 'UNAUTHORIZED',
+					message: 'Unauthorized',
+				},
+				401
+			);
+		}
 
 		// Fetch teams where the user is a member and count the total members
 		const teams = await prisma.team.findMany({
 			where: {
-				members: { some: { userId } },
+				members: { some: { userId: user.id } },
 			},
 			include: {
 				members: {
@@ -36,13 +41,13 @@ export async function GET() {
 					},
 				},
 			},
-			orderBy: { name: 'asc' }, // Sort alphabetically
+			orderBy: { name: 'asc' },
 		});
 
 		// Return teams with the users permissions
-		const teamsToReturn = teams.map((team) => {
+		const teamsToReturn: TeamWithPermissions[] = teams.map((team) => {
 			const userMember = team.members.find(
-				(member) => member.userId === userId
+				(member) => member.userId === user.id
 			);
 
 			let permissions: string[] = [];
@@ -70,111 +75,150 @@ export async function GET() {
 			};
 		});
 
-		return NextResponse.json({ teams: teamsToReturn });
-	} catch (err) {
-		console.error('Error fetching teams:', err);
-		return NextResponse.json(
-			{ error: 'Internal Server Error' },
-			{ status: 500 }
+		return createSuccessResponse({ teams: teamsToReturn });
+	} catch (error) {
+		console.error('Error fetching teams:', error);
+		return createErrorResponse(
+			{
+				code: 'INTERNAL_ERROR',
+				message: 'Failed to fetch teams',
+			},
+			500
 		);
 	}
 }
 
 export async function POST(request: Request) {
-	const supabase = await createClient();
-	const {
-		data: { user },
-		error,
-	} = await supabase.auth.getUser();
-
-	if (!user || error) {
-		console.error(
-			error
-				? 'Error on api/teams/POST:' + error
-				: 'No user found on teams page'
-		);
-		return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-	}
-
 	try {
-		const { name } = await request.json();
-		const userId = user.id;
+		const supabase = await createClient();
+		const {
+			data: { user },
+			error,
+		} = await supabase.auth.getUser();
 
-		// Prevent duplicate team names
-		const existingTeam = await prisma.team.findFirst({
-			where: { name },
-		});
-
-		if (existingTeam) {
-			return NextResponse.json(
-				{ error: 'A team with this name already exists.' },
-				{ status: 400 }
+		if (!user || error) {
+			return createErrorResponse(
+				{
+					code: 'UNAUTHORIZED',
+					message: 'Unauthorized',
+				},
+				401
 			);
 		}
 
-		// Create the team and a default "Admin" role for the team
-		const team = await prisma.team.create({
-			data: {
-				name,
-				roles: {
-					createMany: {
-						data: [
-							{
-								name: 'Admin',
-								permissions: JSON.stringify(
-									defaultAdminPermissions
-								),
-								canDelete: false,
-							},
-							{
-								name: 'Editor',
-								permissions: JSON.stringify(
-									defaultEditorPermissions
-								),
-								canDelete: false,
-							},
-							{
-								name: 'Viewer',
-								permissions: JSON.stringify(
-									defaultViewerPermissions
-								),
-								canDelete: false,
-							},
-						],
+		// Rate limit team creation
+		const rateLimitResult = await rateLimit(
+			user.id,
+			'create_team',
+			5,
+			3600
+		); // 5 teams per hour
+		if (!rateLimitResult.success) {
+			return createErrorResponse(
+				{
+					code: 'RATE_LIMIT_EXCEEDED',
+					message:
+						'Too many team creation attempts. Please try again later.',
+				},
+				429
+			);
+		}
+
+		const body = await request.json();
+
+		// Validate input
+		const validationError = validateCreateTeam(body);
+		if (validationError) {
+			return createErrorResponse(validationError);
+		}
+
+		// Prevent duplicate team names
+		const existingTeam = await prisma.team.findFirst({
+			where: { name: body.name },
+		});
+
+		if (existingTeam) {
+			return createErrorResponse(
+				{
+					code: 'DUPLICATE_TEAM',
+					message: 'A team with this name already exists.',
+				},
+				400
+			);
+		}
+
+		// Create the team and default roles in a transaction
+		const team = await prisma.$transaction(async (tx) => {
+			// Create the team and default roles
+			const newTeam = await tx.team.create({
+				data: {
+					name: body.name,
+					description: body.description,
+					roles: {
+						createMany: {
+							data: [
+								{
+									name: 'Admin',
+									permissions: JSON.stringify(
+										defaultAdminPermissions
+									),
+									canDelete: false,
+								},
+								{
+									name: 'Editor',
+									permissions: JSON.stringify(
+										defaultEditorPermissions
+									),
+									canDelete: false,
+								},
+								{
+									name: 'Viewer',
+									permissions: JSON.stringify(
+										defaultViewerPermissions
+									),
+									canDelete: false,
+								},
+							],
+						},
 					},
 				},
-			},
+			});
+
+			// Fetch the created default admin role
+			const adminRole = await tx.teamRole.findFirst({
+				where: { teamId: newTeam.id, name: 'Admin' },
+			});
+
+			if (!adminRole) {
+				throw new Error('Failed to create admin role');
+			}
+
+			// Add the current user as a team member with the admin role
+			await tx.teamMember.create({
+				data: {
+					teamId: newTeam.id,
+					userId: user.id,
+					teamRoleId: adminRole.id,
+					customPermissions: JSON.stringify({ '*': true }),
+				},
+			});
+
+			return newTeam;
 		});
 
-		// Fetch the created default admin role
-		const adminRole = await prisma.teamRole.findFirst({
-			where: { teamId: team.id, name: 'Admin' },
+		return createSuccessResponse({
+			id: team.id,
+			name: team.name,
+			totalMembers: 1,
 		});
-
-		// Add the current user as a team member with the admin role
-		await prisma.teamMember.create({
-			data: {
-				teamId: team.id,
-				userId,
-				teamRoleId: adminRole?.id || '',
-				customPermissions: JSON.stringify({ '*': true }),
-			},
-		});
-
-		// Return team with member count
-		return NextResponse.json(
+	} catch (error) {
+		console.error('Error creating team:', error);
+		return createErrorResponse(
 			{
-				id: team.id,
-				name: team.name,
-				totalMembers: 1, // Since the creator is the first member
+				code: 'INTERNAL_ERROR',
+				message: 'Failed to create team',
 			},
-			{ status: 201 }
-		);
-	} catch (err) {
-		console.error('Error creating team:', err);
-		return NextResponse.json(
-			{ error: 'Internal Server Error' },
-			{ status: 500 }
+			500
 		);
 	}
 }
