@@ -1,129 +1,191 @@
 // src/app/api/projects/route.ts
 
-import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase";
-import prisma from "@/lib/prisma";
-import { checkPermissions, getUserPermissions } from "@/lib/permissions";
-import { type Project } from "@prisma/client";
+import { createClient } from '@/lib/supabase';
+import prisma from '@/lib/prisma';
+import { checkPermissions } from '@/lib/permissions';
+import { validateCreateProject, type ProjectWithCounts } from './types';
+import { createErrorResponse, createSuccessResponse } from '../shared/utils';
 
 export async function GET() {
-    const supabase = await createClient();
-    const { data: { user }, error } = await supabase.auth.getUser();
+	try {
+		const supabase = await createClient();
+		const {
+			data: { user },
+			error,
+		} = await supabase.auth.getUser();
 
-    if (!user || error) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+		if (!user || error) {
+			return createErrorResponse(
+				{
+					code: 'UNAUTHORIZED',
+					message: 'Unauthorized',
+				},
+				401
+			);
+		}
 
-    try {
-        const userId = user.id;
+		// Fetch projects where the user is a member of the team
+		const projects = await prisma.project.findMany({
+			where: {
+				team: {
+					members: {
+						some: { userId: user.id },
+					},
+				},
+			},
+			include: {
+				team: true,
+				boards: {
+					include: {
+						columns: {
+							include: {
+								tasks: true,
+							},
+						},
+					},
+				},
+			},
+			orderBy: {
+				updatedAt: 'desc',
+			},
+		});
 
-        // Fetch projects where the user is a member of the team
-        const projects = await prisma.project.findMany({
-            where: {
-                team: {
-                    members: {
-                        some: { userId }
-                    }
-                }
-            },
-            include: {
-                team: true,
-                boards: {
-                    include: {
-                        columns: {
-                            include: {
-                                tasks: true
-                            }
-                        }
-                    }
-                }
-            },
-            orderBy: {
-                updatedAt: 'desc'
-            }
-        });
+		// Map through projects to calculate totalBoards & totalTasks
+		const projectsWithCounts: ProjectWithCounts[] = projects.map(
+			(project) => {
+				const totalBoards = project.boards.length;
+				const totalTasks = project.boards.reduce((taskCount, board) => {
+					return (
+						taskCount +
+						board.columns.reduce(
+							(colCount, column) =>
+								colCount + column.tasks.length,
+							0
+						)
+					);
+				}, 0);
 
-        // Map through projects to calculate totalBoards & totalTasks
-        const projectsWithCounts = projects.map(project => {
-            const totalBoards = project.boards.length;
-            const totalTasks = project.boards.reduce((taskCount, board) => {
-                return taskCount + board.columns.reduce((colCount, column) => colCount + column.tasks.length, 0);
-            }, 0);
+				return {
+					id: project.id,
+					name: project.name,
+					description: project.description,
+					teamId: project.teamId,
+					team: {
+						name: project.team.name,
+					},
+					updatedAt: project.updatedAt,
+					totalBoards,
+					totalTasks,
+				};
+			}
+		);
 
-            return {
-                id: project.id,
-                name: project.name,
-                description: project.description,
-                teamId: project.teamId,
-                team: {
-                    name: project.team.name
-                },
-                updatedAt: project.updatedAt,
-                totalBoards,
-                totalTasks
-            };
-        });
+		// Filter projects based on permissions
+		const filteredProjects = await Promise.all(
+			projectsWithCounts.map(async (project) => {
+				const hasPermission = await checkPermissions(
+					user.id,
+					project.teamId,
+					['viewProjects']
+				);
+				return hasPermission ? project : null;
+			})
+		);
 
-        const filteredProjects = [];
-
-        for (const project of projectsWithCounts) {
-            const hasPermission = await checkPermissions(userId, project.teamId, ['viewProjects']);
-
-            if (hasPermission) {
-                filteredProjects.push(project);
-            }
-        }
-
-        return NextResponse.json({ projects: filteredProjects });
-    } catch (err) {
-        console.error("Error fetching projects:", err);
-        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
-    }
+		return createSuccessResponse({
+			projects: filteredProjects.filter(
+				(project): project is ProjectWithCounts => project !== null
+			),
+		});
+	} catch (error) {
+		console.error('Error fetching projects:', error);
+		return createErrorResponse(
+			{
+				code: 'INTERNAL_ERROR',
+				message: 'Failed to fetch projects',
+			},
+			500
+		);
+	}
 }
 
 export async function POST(request: Request) {
-    const supabase = await createClient();
-    const { data: { user }, error } = await supabase.auth.getUser();
+	try {
+		const supabase = await createClient();
+		const {
+			data: { user },
+			error,
+		} = await supabase.auth.getUser();
 
-    if (!user || error) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+		if (!user || error) {
+			return createErrorResponse(
+				{
+					code: 'UNAUTHORIZED',
+					message: 'Unauthorized',
+				},
+				401
+			);
+		}
 
-    try {
-        const { name, description, teamId } = await request.json();
+		const body = await request.json();
 
-        const hasPermission = await checkPermissions(user.id, teamId, ['createProjects']);
+		// Validate input
+		const validationError = validateCreateProject(body);
+		if (validationError) {
+			return createErrorResponse(validationError);
+		}
 
-        if (!hasPermission) {
-            return NextResponse.json({ error: "Forbidden: You do not have permission to create projects with that team"}, { status: 403 });
-        }
+		// Check permissions
+		const hasPermission = await checkPermissions(user.id, body.teamId, [
+			'createProjects',
+		]);
+		if (!hasPermission) {
+			return createErrorResponse(
+				{
+					code: 'FORBIDDEN',
+					message:
+						'You do not have permission to create projects with that team',
+				},
+				403
+			);
+		}
 
-        if (!name || !teamId) {
-            return NextResponse.json({ error: "Name and Team ID are required" }, { status: 400 });
-        }
+		// Verify team membership
+		const teamMembership = await prisma.teamMember.findFirst({
+			where: {
+				userId: user.id,
+				teamId: body.teamId,
+			},
+		});
 
-        const teamMembership = await prisma.teamMember.findFirst({
-            where: {
-                userId: user.id,
-                teamId
-            }
-        });
+		if (!teamMembership) {
+			return createErrorResponse(
+				{
+					code: 'FORBIDDEN',
+					message: 'User not part of the specified team',
+				},
+				403
+			);
+		}
 
-        if (!teamMembership) {
-            return NextResponse.json({ error: "User not part of the specified team" }, { status: 403 });
-        }
+		// Create project
+		const newProject = await prisma.project.create({
+			data: {
+				name: body.name,
+				description: body.description,
+				teamId: body.teamId,
+			},
+		});
 
-        const newProject = await prisma.project.create({
-            data: {
-                name,
-                description,
-                teamId
-            }
-        });
-
-        return NextResponse.json(newProject, { status: 201 });
-    } catch (err) {
-        console.error("Error creating project:", err);
-        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
-    }
+		return createSuccessResponse(newProject);
+	} catch (error) {
+		console.error('Error creating project:', error);
+		return createErrorResponse(
+			{
+				code: 'INTERNAL_ERROR',
+				message: 'Failed to create project',
+			},
+			500
+		);
+	}
 }
