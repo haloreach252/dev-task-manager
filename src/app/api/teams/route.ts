@@ -50,20 +50,18 @@ export async function GET() {
 				(member) => member.userId === user.id
 			);
 
-			let permissions: string[] = [];
+			let permissions: Record<string, boolean> = {};
 			if (userMember) {
 				const role = userMember.teamRole;
 				const rolePermissions = role?.permissions
 					? JSON.parse(role.permissions)
 					: {};
+				const customPermissions = userMember.customPermissions
+					? JSON.parse(userMember.customPermissions)
+					: {};
 
-				if (role.name === 'Admin') {
-					permissions = ['*'];
-				} else {
-					permissions = Object.keys(rolePermissions).filter(
-						(key) => rolePermissions[key] === true
-					);
-				}
+				// Merge role and custom permissions
+				permissions = { ...rolePermissions, ...customPermissions };
 			}
 
 			return {

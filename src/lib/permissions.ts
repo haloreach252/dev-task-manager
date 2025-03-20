@@ -13,7 +13,8 @@ export async function getUserPermissions(userId: string, teamId: string) {
 	const customPermissions = JSON.parse(teamMember.customPermissions || '{}');
 
 	// Merge role and custom permissions (custom overrides role)
-	return deepMerge(rolePermissions, customPermissions);
+	const mergedPermissions = deepMerge(rolePermissions, customPermissions);
+	return mergedPermissions;
 }
 
 export function getUserMaxPermissionLevel(
@@ -43,15 +44,22 @@ export async function logUnauthorizedAccess(
 	});
 }
 
-function deepMerge(rolePerms: any, customPerms: any) {
+function deepMerge(
+	rolePerms: Record<string, boolean>,
+	customPerms: Record<string, boolean>
+): Record<string, boolean> {
 	return { ...rolePerms, ...customPerms };
 }
 
-export async function checkPermissions(userId: string, teamId: string, permissionsToCheck: string[]): Promise<boolean> {
+export async function checkPermissions(
+	userId: string,
+	teamId: string,
+	permissionsToCheck: string[]
+): Promise<boolean> {
 	const userPermissions = await getUserPermissions(userId, teamId);
 
 	let hasAllPermissions = true;
-	for(const permission of permissionsToCheck) {
+	for (const permission of permissionsToCheck) {
 		if (!userPermissions[permission]) {
 			hasAllPermissions = false;
 			break;
@@ -298,10 +306,10 @@ const boardPermissions: Permission[] = [
 	},
 	{
 		key: 'viewBoards',
-		label: "View Boards",
+		label: 'View Boards',
 		level: 1,
-		category: "Board"
-	}
+		category: 'Board',
+	},
 ];
 
 //{ key: '', label: '', level: 1, category: ''},

@@ -46,7 +46,7 @@ export type TeamWithPermissions = {
 	name: string;
 	description: string | null;
 	totalMembers: number;
-	permissions: string[];
+	permissions: Record<string, boolean>;
 };
 
 export type TeamsResponse = {

@@ -3,7 +3,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import Link from 'next/link';
@@ -29,35 +29,32 @@ import {
 	X,
 	Loader,
 	ArrowBigRightDash,
+	Plus,
 } from 'lucide-react';
 import DeleteTeamDialog from './DeleteTeamDialog';
 import { useRouter } from 'next/navigation';
 import { usePermissions } from '@/hooks/usePermissions';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 type Team = {
 	id: string;
 	name: string;
 	description: string;
 	totalMembers: number;
-	permissions: string[];
+	permissions: Record<string, boolean>;
 };
-
-function checkPermissions(
-	userPermissions: string[],
-	againstPermissions: string[]
-) {
-	return userPermissions.some((r) => againstPermissions.includes(r));
-}
 
 export default function TeamsDashboard() {
 	const router = useRouter();
 	const queryClient = useQueryClient();
 	const { toast } = useToast();
 	const [newTeamName, setNewTeamName] = useState('');
+	const [newTeamDescription, setNewTeamDescription] = useState('');
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
 	const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
 	const [editedTeamName, setEditedTeamName] = useState('');
 	const [teamToDelete, setTeamToDelete] = useState<Team | null>(null);
+	const [searchQuery, setSearchQuery] = useState('');
 
 	// Fetch Teams using react-query
 	const {
@@ -68,7 +65,10 @@ export default function TeamsDashboard() {
 		queryKey: ['teams'],
 		queryFn: async () => {
 			const res = await axios.get('/api/teams');
-			return res.data.teams.sort((a: Team, b: Team) =>
+			if (!res.data.success) {
+				throw new Error(res.data.error.message);
+			}
+			return res.data.data.teams.sort((a: Team, b: Team) =>
 				a.name.localeCompare(b.name)
 			);
 		},
@@ -77,25 +77,56 @@ export default function TeamsDashboard() {
 	const teamIds = teams?.map((team) => team.id) || [];
 	const { hasPermission } = usePermissions(teamIds);
 
+	// Filter teams based on search query
+	const filteredTeams = teams?.filter(
+		(team) =>
+			team.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+			team.description?.toLowerCase().includes(searchQuery.toLowerCase())
+	);
+
+	// Calculate team statistics
+	const teamStats = teams
+		? {
+				totalTeams: teams.length,
+				totalMembers: teams.reduce(
+					(acc, team) => acc + team.totalMembers,
+					0
+				),
+				averageMembers: Math.round(
+					teams.reduce((acc, team) => acc + team.totalMembers, 0) /
+						teams.length
+				),
+				largestTeam: teams.reduce(
+					(max, team) =>
+						team.totalMembers > max ? team.totalMembers : max,
+					0
+				),
+		  }
+		: null;
+
 	// Mutation to create a team
 	const createTeam = useMutation({
 		mutationFn: async () => {
-			const res = await axios.post('/api/teams', { name: newTeamName });
+			const res = await axios.post('/api/teams', {
+				name: newTeamName,
+				description: newTeamDescription,
+			});
 			return res.data;
 		},
 		onSuccess: (newTeam) => {
 			queryClient.invalidateQueries({ queryKey: ['teams'] });
 			setIsDialogOpen(false);
 			setNewTeamName('');
+			setNewTeamDescription('');
 			toast({
 				title: 'Team Created',
 				description: `Team "${newTeamName}" was successfully created.`,
 			});
 		},
-		onError: () => {
+		onError: (error: Error) => {
 			toast({
 				title: 'Error',
-				description: 'Failed to create team.',
+				description: error.message || 'Failed to create team.',
 				variant: 'destructive',
 			});
 		},
@@ -151,11 +182,19 @@ export default function TeamsDashboard() {
 	});
 
 	const handleEdit = (team: Team) => {
-		//if (!checkPermissions(team.permissions, editPermissions)) return;
-		if (!hasPermission(team.id, 'team.edit')) return;
+		console.log('handleEdit called with team:', team);
+		const hasEditPermission = hasPermission(team.id, 'editTeam');
+		console.log('hasEditPermission:', hasEditPermission);
+		if (!hasEditPermission) return;
+		console.log('Setting editingTeamId to:', team.id);
 		setEditingTeamId(team.id);
 		setEditedTeamName(team.name);
 	};
+
+	// Add effect to monitor editingTeamId changes
+	useEffect(() => {
+		console.log('editingTeamId changed to:', editingTeamId);
+	}, [editingTeamId]);
 
 	const handleSave = (teamId: string) => {
 		if (
@@ -170,17 +209,83 @@ export default function TeamsDashboard() {
 
 	return (
 		<div className="p-8 space-y-8">
-			{/* Header */}
+			{/* Header with Statistics */}
 			<motion.div
 				initial={{ opacity: 0, y: -10 }}
 				animate={{ opacity: 1, y: 0 }}
 				transition={{ duration: 0.5 }}
-				className="flex justify-between items-center"
+				className="space-y-6"
 			>
-				<h1 className="text-3xl font-bold">Your Teams</h1>
-				<Button onClick={() => setIsDialogOpen(true)}>
-					<PlusCircle className="w-5 h-5 mr-2" /> Create New Team
-				</Button>
+				<div className="flex justify-between items-center">
+					<h1 className="text-3xl font-bold">Your Teams</h1>
+					<Button onClick={() => setIsDialogOpen(true)}>
+						<PlusCircle className="w-5 h-5 mr-2" /> Create New Team
+					</Button>
+				</div>
+
+				{teamStats && (
+					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+						<Card>
+							<CardHeader>
+								<CardTitle className="text-sm font-medium">
+									Total Teams
+								</CardTitle>
+							</CardHeader>
+							<CardContent>
+								<div className="text-2xl font-bold">
+									{teamStats.totalTeams}
+								</div>
+							</CardContent>
+						</Card>
+						<Card>
+							<CardHeader>
+								<CardTitle className="text-sm font-medium">
+									Total Members
+								</CardTitle>
+							</CardHeader>
+							<CardContent>
+								<div className="text-2xl font-bold">
+									{teamStats.totalMembers}
+								</div>
+							</CardContent>
+						</Card>
+						<Card>
+							<CardHeader>
+								<CardTitle className="text-sm font-medium">
+									Average Team Size
+								</CardTitle>
+							</CardHeader>
+							<CardContent>
+								<div className="text-2xl font-bold">
+									{teamStats.averageMembers}
+								</div>
+							</CardContent>
+						</Card>
+						<Card>
+							<CardHeader>
+								<CardTitle className="text-sm font-medium">
+									Largest Team
+								</CardTitle>
+							</CardHeader>
+							<CardContent>
+								<div className="text-2xl font-bold">
+									{teamStats.largestTeam} members
+								</div>
+							</CardContent>
+						</Card>
+					</div>
+				)}
+
+				{/* Search Input */}
+				<div className="relative">
+					<Input
+						type="text"
+						placeholder="Search teams..."
+						value={searchQuery}
+						onChange={(e) => setSearchQuery(e.target.value)}
+						className="w-full max-w-sm"
+					/>
+				</div>
 			</motion.div>
 
 			{/* Teams Grid */}
@@ -191,17 +296,22 @@ export default function TeamsDashboard() {
 					))}
 				</div>
 			) : error ? (
-				<div className="text-center text-red-500">
-					Failed to load teams.
-				</div>
-			) : teams?.length ? (
+				<Alert variant="destructive">
+					<AlertTitle>Error</AlertTitle>
+					<AlertDescription>
+						{error instanceof Error
+							? error.message
+							: 'Failed to load teams'}
+					</AlertDescription>
+				</Alert>
+			) : filteredTeams?.length ? (
 				<motion.div
 					initial={{ opacity: 0 }}
 					animate={{ opacity: 1 }}
 					transition={{ duration: 0.3 }}
 					className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
 				>
-					{teams.map((team) => (
+					{filteredTeams.map((team) => (
 						<motion.div
 							key={team.id}
 							whileHover={{ scale: 1.02 }}
@@ -210,97 +320,144 @@ export default function TeamsDashboard() {
 							<Card className="hover:shadow-lg transition-transform">
 								<CardHeader className="flex justify-between items-center">
 									{editingTeamId === team.id ? (
-										<Input
-											value={editedTeamName}
-											onChange={(e) =>
-												setEditedTeamName(
-													e.target.value
-												)
-											}
-											onKeyDown={(e) => {
-												if (
-													e.key === 'Enter' &&
-													hasPermission(
-														team.id,
-														'team.edit'
+										<div className="flex items-center gap-2 w-full">
+											<Input
+												value={editedTeamName}
+												onChange={(e) =>
+													setEditedTeamName(
+														e.target.value
 													)
-												)
-													handleSave(team.id);
-												if (
-													e.key === 'Escape' &&
-													hasPermission(
-														team.id,
-														'team.edit'
+												}
+												onKeyDown={(e) => {
+													if (
+														e.key === 'Enter' &&
+														hasPermission(
+															team.id,
+															'editTeam'
+														)
 													)
-												)
-													setEditingTeamId(null);
-											}}
-											autoFocus
-											onBlur={() => handleSave(team.id)}
-										/>
+														handleSave(team.id);
+													if (
+														e.key === 'Escape' &&
+														hasPermission(
+															team.id,
+															'editTeam'
+														)
+													)
+														setEditingTeamId(null);
+												}}
+												autoFocus
+												disabled={
+													updateTeamName.isPending
+												}
+											/>
+											{updateTeamName.isPending && (
+												<Loader className="w-4 h-4 animate-spin" />
+											)}
+										</div>
 									) : (
-										<CardTitle className="flex justify-between items-center cursor-pointer">
+										<CardTitle className="flex justify-between items-center w-full">
 											<span
-												onClick={() => handleEdit(team)}
+												className="text-lg font-semibold hover:text-primary cursor-pointer"
+												onClick={(e) => {
+													console.log(
+														'Team name clicked'
+													);
+													e.stopPropagation();
+													const canEdit =
+														hasPermission(
+															team.id,
+															'editTeam'
+														);
+													console.log(
+														'Can edit team?',
+														canEdit
+													);
+													if (canEdit) {
+														handleEdit(team);
+													}
+												}}
 											>
 												{team.name}
 											</span>
-											{hasPermission(
-												team.id,
-												'team.edit'
-											) && (
-												<Button
-													size="icon"
-													variant="ghost"
-													onClick={() =>
-														handleEdit(team)
-													}
-												>
-													<Pencil className="w-4 h-4 text-gray-500" />
-												</Button>
-											)}
-											{hasPermission(
-												team.id,
-												'team.delete'
-											) && (
-												<Button
-													size="icon"
-													variant="ghost"
-													onClick={() =>
-														deleteTeam.mutate(
-															team.id
-														)
-													}
-												>
-													<Trash className="w-4 h-4 text-red-500" />
-												</Button>
-											)}
+											<div className="flex items-center gap-2">
+												{hasPermission(
+													team.id,
+													'editTeam'
+												) && (
+													<Button
+														variant="ghost"
+														size="sm"
+														onClick={(e) => {
+															e.stopPropagation();
+															handleEdit(team);
+														}}
+														className="hover:bg-accent"
+													>
+														<Pencil className="w-4 h-4 mr-2" />
+														Edit
+													</Button>
+												)}
+												{hasPermission(
+													team.id,
+													'deleteTeam'
+												) && (
+													<Button
+														variant="ghost"
+														size="sm"
+														onClick={(e) => {
+															e.stopPropagation();
+															setTeamToDelete(
+																team
+															);
+														}}
+														disabled={
+															deleteTeam.isPending
+														}
+														className="hover:bg-destructive hover:text-destructive-foreground"
+													>
+														{deleteTeam.isPending ? (
+															<>
+																<Loader className="w-4 h-4 mr-2 animate-spin" />
+																Deleting...
+															</>
+														) : (
+															<>
+																<Trash className="w-4 h-4 mr-2" />
+																Delete
+															</>
+														)}
+													</Button>
+												)}
+											</div>
 										</CardTitle>
 									)}
 								</CardHeader>
-								<CardContent>
-									<div className="flex flex-col">
-										{team.description}
-										<div
-											className={`flex justify-between items-center text-sm text-gray-700 ${
-												team.description ? 'mt-4' : ''
-											}`}
-										>
-											<div className="flex items-center gap-2">
-												<Users className="w-4 h-4 text-indigo-600" />
-												<span>
-													{team.totalMembers} Members
-												</span>
+								<CardContent
+									className="cursor-pointer"
+									onClick={() =>
+										router.push(`/teams/${team.id}`)
+									}
+								>
+									<div className="flex flex-col gap-4">
+										<p className="text-sm text-muted-foreground">
+											{team.description ||
+												'No description'}
+										</p>
+										<div className="flex justify-between items-center">
+											<div className="flex items-center gap-2 text-sm text-muted-foreground">
+												<Users className="w-4 h-4" />
+												{team.totalMembers}{' '}
+												{team.totalMembers === 1
+													? 'member'
+													: 'members'}
 											</div>
 											<Button
-												className="flex items-center gap-2"
-												onClick={() =>
-													router.push(
-														`/teams/${team.id}`
-													)
-												}
+												variant="outline"
+												size="sm"
+												className="gap-2"
 											>
-												Go to Team
+												View Team{' '}
 												<ArrowBigRightDash className="w-4 h-4" />
 											</Button>
 										</div>
@@ -311,10 +468,19 @@ export default function TeamsDashboard() {
 					))}
 				</motion.div>
 			) : (
-				<div className="text-center text-gray-600">
-					<p className="text-lg">You are not part of any teams.</p>
-					<p>Create one to get started!</p>
-				</div>
+				<Card className="p-6">
+					<div className="text-center space-y-4">
+						<p className="text-muted-foreground">
+							{searchQuery
+								? 'No teams found matching your search.'
+								: 'No teams found. Start by creating one!'}
+						</p>
+						<Button onClick={() => setIsDialogOpen(true)}>
+							<Plus className="w-5 h-5 mr-2" />
+							Create New Team
+						</Button>
+					</div>
+				</Card>
 			)}
 
 			{/* Create Team Dialog */}
@@ -323,38 +489,79 @@ export default function TeamsDashboard() {
 					<DialogHeader>
 						<DialogTitle>Create New Team</DialogTitle>
 					</DialogHeader>
-
-					<Input
-						placeholder="Team Name"
-						value={newTeamName}
-						onChange={(e) => setNewTeamName(e.target.value)}
-					/>
-
+					<div className="space-y-4">
+						<div className="space-y-2">
+							<label
+								htmlFor="teamName"
+								className="text-sm font-medium"
+							>
+								Team Name
+							</label>
+							<Input
+								id="teamName"
+								value={newTeamName}
+								onChange={(e) => setNewTeamName(e.target.value)}
+								placeholder="Enter team name"
+								disabled={createTeam.isPending}
+							/>
+						</div>
+						<div className="space-y-2">
+							<label
+								htmlFor="teamDescription"
+								className="text-sm font-medium"
+							>
+								Description (optional)
+							</label>
+							<Input
+								id="teamDescription"
+								value={newTeamDescription}
+								onChange={(e) =>
+									setNewTeamDescription(e.target.value)
+								}
+								placeholder="Enter team description"
+								disabled={createTeam.isPending}
+							/>
+						</div>
+					</div>
 					<DialogFooter>
 						<Button
+							variant="outline"
+							onClick={() => setIsDialogOpen(false)}
+							disabled={createTeam.isPending}
+						>
+							Cancel
+						</Button>
+						<Button
 							onClick={() => createTeam.mutate()}
-							disabled={!newTeamName}
+							disabled={
+								!newTeamName.trim() || createTeam.isPending
+							}
 						>
 							{createTeam.isPending ? (
-								<Loader className="animate-spin w-5 h-5" />
+								<>
+									<Loader className="w-4 h-4 mr-2 animate-spin" />
+									Creating...
+								</>
 							) : (
-								'Create Team'
+								<>
+									<PlusCircle className="w-4 h-4 mr-2" />
+									Create Team
+								</>
 							)}
 						</Button>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
 
-			{/* Delete Team Confirmation Dialog */}
+			{/* Delete Team Dialog */}
 			<DeleteTeamDialog
-				isOpen={!!teamToDelete}
+				team={teamToDelete}
 				onClose={() => setTeamToDelete(null)}
-				onConfirm={() => {
-					if (teamToDelete) {
-						deleteTeam.mutate(teamToDelete.id);
-						setTeamToDelete(null);
-					}
+				onConfirm={(teamId) => {
+					deleteTeam.mutate(teamId);
+					setTeamToDelete(null);
 				}}
+				isDeleting={deleteTeam.isPending}
 			/>
 		</div>
 	);

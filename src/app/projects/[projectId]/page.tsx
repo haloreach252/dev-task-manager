@@ -67,10 +67,13 @@ export default function ProjectBoardsPage() {
 		error,
 		refetch,
 	} = useQuery<Board[]>({
-		queryKey: ['boards', projectId],
+		queryKey: ['boards', projectId] as const,
 		queryFn: async () => {
 			const res = await axios.get(`/api/projects/${projectId}/boards`);
-			return res.data.boards;
+			if (!res.data.success) {
+				throw new Error(res.data.error.message);
+			}
+			return res.data.data.boards;
 		},
 	});
 
@@ -212,9 +215,18 @@ export default function ProjectBoardsPage() {
 						<Skeleton key={i} className="h-32 rounded-lg" />
 					))}
 				</div>
-			) : error ? (
-				<div className="text-center text-red-500">
-					Failed to load boards.
+			) : isError ? (
+				<div className="flex flex-col items-center space-y-4">
+					<Alert variant="destructive" className="max-w-md">
+						<AlertTitle>Error</AlertTitle>
+						<AlertDescription>
+							Failed to load boards. Please try again.
+						</AlertDescription>
+					</Alert>
+					<Button variant="outline" onClick={() => refetch()}>
+						<RefreshCcw className="w-5 h-5 mr-2" />
+						Retry
+					</Button>
 				</div>
 			) : sortedBoards?.length ? (
 				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -224,7 +236,14 @@ export default function ProjectBoardsPage() {
 							initial={{ opacity: 0, y: 10 }}
 							whileInView={{ opacity: 1, y: 0 }}
 						>
-							<Card className="hover:shadow-lg cursor-pointer transition-transform hover:scale-105">
+							<Card
+								className="hover:shadow-lg cursor-pointer transition-transform hover:scale-105"
+								onClick={() =>
+									router.push(
+										`/projects/${projectId}/boards/${board.id}`
+									)
+								}
+							>
 								<CardHeader>
 									{editingBoardId === board.id ? (
 										<Input
@@ -244,30 +263,37 @@ export default function ProjectBoardsPage() {
 									) : (
 										<CardTitle
 											className="flex justify-between items-center"
-											onClick={() => handleEdit(board)}
+											onClick={(e) => {
+												e.stopPropagation();
+												handleEdit(board);
+											}}
 										>
 											{board.name}
 											{board.visibility === 'PUBLIC' ? (
-												<Eye className="w-5 h-5 text-green-500" />
+												<Eye className="w-5 h-5 text-muted-foreground" />
 											) : board.visibility === 'TEAM' ? (
-												<Users className="w-5 h-5 text-blue-500" />
+												<Users className="w-5 h-5 text-muted-foreground" />
 											) : (
-												<Lock className="w-5 h-5 text-red-500" />
+												<Lock className="w-5 h-5 text-muted-foreground" />
 											)}
 										</CardTitle>
 									)}
 								</CardHeader>
-								<CardContent
-									onClick={() =>
-										router.push(`/boards/${board.id}`)
-									}
-								>
-									<div className="flex justify-between items-center text-sm text-gray-700">
-										<div className="flex items-center gap-2">
-											<ListChecks className="w-4 h-4 text-indigo-600" />
-											<span>
-												{board.totalTasks} Tasks
-											</span>
+								<CardContent>
+									<div className="flex items-center justify-between text-sm text-muted-foreground">
+										<div className="flex items-center">
+											<ListChecks className="w-4 h-4 mr-2" />
+											{board.totalTasks} tasks
+										</div>
+										<div className="flex items-center">
+											{sorting === 'recentlyUpdated' ? (
+												<SortDesc className="w-4 h-4 mr-2" />
+											) : (
+												<SortAsc className="w-4 h-4 mr-2" />
+											)}
+											{new Date(
+												board.updatedAt
+											).toLocaleDateString()}
 										</div>
 									</div>
 								</CardContent>
@@ -276,9 +302,17 @@ export default function ProjectBoardsPage() {
 					))}
 				</div>
 			) : (
-				<div className="text-center text-gray-600">
-					No boards found. Start by creating one!
-				</div>
+				<Card className="p-6">
+					<div className="text-center space-y-4">
+						<p className="text-muted-foreground">
+							No boards found. Start by creating one!
+						</p>
+						<Button onClick={() => setIsDialogOpen(true)}>
+							<Plus className="w-5 h-5 mr-2" />
+							Create New Board
+						</Button>
+					</div>
+				</Card>
 			)}
 
 			{/* Create Board Dialog */}

@@ -1,24 +1,64 @@
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
+	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-	DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
+import { Loader } from 'lucide-react';
 
-export default function DeleteTeamDialog({ isOpen, onClose, onConfirm }: { isOpen: boolean; onClose: () => void; onConfirm: () => void }) {
+type Team = {
+	id: string;
+	name: string;
+};
+
+type DeleteTeamDialogProps = {
+	team: Team | null;
+	onClose: () => void;
+	onConfirm: (teamId: string) => void;
+	isDeleting: boolean;
+};
+
+export default function DeleteTeamDialog({
+	team,
+	onClose,
+	onConfirm,
+	isDeleting,
+}: DeleteTeamDialogProps) {
 	return (
-		<Dialog open={isOpen} onOpenChange={onClose}>
+		<Dialog open={!!team} onOpenChange={() => onClose()}>
 			<DialogContent>
 				<DialogHeader>
-					<DialogTitle>Delete Team?</DialogTitle>
+					<DialogTitle>Delete Team</DialogTitle>
+					<DialogDescription>
+						Are you sure you want to delete the team &ldquo;
+						{team?.name}&rdquo;? This action cannot be undone.
+					</DialogDescription>
 				</DialogHeader>
-				<p>Are you sure you want to delete this team? This action is irreversible.</p>
 				<DialogFooter>
-					<Button variant="outline" onClick={onClose}>Cancel</Button>
-					<Button variant="destructive" onClick={onConfirm}>Delete</Button>
+					<Button
+						variant="outline"
+						onClick={onClose}
+						disabled={isDeleting}
+					>
+						Cancel
+					</Button>
+					<Button
+						variant="destructive"
+						onClick={() => team && onConfirm(team.id)}
+						disabled={isDeleting}
+					>
+						{isDeleting ? (
+							<>
+								<Loader className="w-4 h-4 mr-2 animate-spin" />
+								Deleting...
+							</>
+						) : (
+							'Delete Team'
+						)}
+					</Button>
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>
