@@ -1,20 +1,19 @@
-import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { validateContactForm } from '../shared/types';
+import { createErrorResponse, createSuccessResponse } from '../shared/utils';
 
 const RATE_LIMIT = 5 * 60 * 1000; // 5 minutes
-const rateLimitMap = new Map(); // Temporary rate-limiting storage
+const rateLimitMap = new Map<string, number>(); // Temporary rate-limiting storage
 
 export async function POST(req: Request) {
 	try {
-		const { name, email, message } = await req.json();
-		const ip = req.headers.get('x-forwarded-for') || 'unknown-ip'; // Get user IP
+		const body = await req.json();
+		const ip = req.headers.get('x-forwarded-for') || 'unknown-ip';
 
-		// Basic input validation
-		if (!name || !email || !message) {
-			return NextResponse.json(
-				{ error: 'All fields are required.' },
-				{ status: 400 }
-			);
+		// Validate input
+		const validationError = validateContactForm(body);
+		if (validationError) {
+			return createErrorResponse(validationError);
 		}
 
 		// Rate limiting check
@@ -22,29 +21,39 @@ export async function POST(req: Request) {
 		const now = Date.now();
 
 		if (lastSubmission && now - lastSubmission < RATE_LIMIT) {
-			return NextResponse.json(
-				{ error: 'You can only submit once every 5 minutes.' },
-				{ status: 429 }
+			return createErrorResponse(
+				{
+					code: 'RATE_LIMIT_EXCEEDED',
+					message: 'You can only submit once every 5 minutes.',
+				},
+				429
 			);
 		}
 
 		// Save to database
-		const submission = await prisma.ContactSubmission.create({
-			data: { name, email, message },
+		const submission = await prisma.contactSubmission.create({
+			data: {
+				name: body.name,
+				email: body.email,
+				message: body.message,
+			},
 		});
 
 		// Update rate limit tracking
 		rateLimitMap.set(ip, now);
 
-		return NextResponse.json({
-			success: true,
+		return createSuccessResponse({
 			message: 'Message sent successfully!',
+			submission,
 		});
 	} catch (error) {
 		console.error('Error submitting contact form:', error);
-		return NextResponse.json(
-			{ error: 'Internal Server Error' },
-			{ status: 500 }
+		return createErrorResponse(
+			{
+				code: 'INTERNAL_ERROR',
+				message: 'Failed to submit contact form',
+			},
+			500
 		);
 	}
 }
