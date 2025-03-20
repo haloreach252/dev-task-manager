@@ -1,10 +1,15 @@
 // src/app/api/boards/[boardId]/tasks/[taskId]/details/route.ts
 
-import { NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase';
 import prisma from '@/lib/prisma';
 import { getUserPermissions } from '@/lib/permissions';
-import { createClient } from '@/lib/supabase';
 import { BoardVisibility } from '@prisma/client';
+import { validateUpdateTask } from '../../types';
+import {
+	createErrorResponse,
+	createSuccessResponse,
+} from '@/app/api/shared/utils';
+import { rateLimit } from '@/lib/rate-limit';
 
 export async function GET(
 	request: Request,
@@ -13,51 +18,56 @@ export async function GET(
 	const supabase = await createClient();
 	const {
 		data: { user },
-		error,
+		error: authError,
 	} = await supabase.auth.getUser();
+
+	if (authError || !user) {
+		return createErrorResponse(
+			{ code: 'UNAUTHORIZED', message: 'Unauthorized' },
+			401
+		);
+	}
+
 	const { taskId, boardId } = await props.params;
 
 	// Check permissions
 	const board = await prisma.board.findUnique({
 		where: { id: boardId },
-		include: { project: true }
+		include: { project: true },
 	});
 
 	if (!board) {
-		return NextResponse.json({ error: "Board not found" }, { status: 404 });
+		return createErrorResponse(
+			{ code: 'NOT_FOUND', message: 'Board not found' },
+			404
+		);
 	}
 
 	if (!(board.visibility === BoardVisibility.PUBLIC)) {
-		if (!user) {
-			return NextResponse.json(
-				{ error: 'Unauthorized' },
-				{ status: 403 }
-			);
-		}
-
 		const teamId = board.project.teamId;
 		const userPermissions = await getUserPermissions(user.id, teamId);
 
 		if (!userPermissions['viewTasks'] && !userPermissions['*']) {
-			return NextResponse.json({ error: "Forbidden: You do not have permissions to edit tasks on this board" }, { status: 403 });
+			return createErrorResponse(
+				{
+					code: 'FORBIDDEN',
+					message: 'You do not have permission to view tasks',
+				},
+				403
+			);
 		}
 	}
 
-	// Task detail get logic
 	try {
 		const task = await prisma.task.findUnique({
 			where: { id: taskId },
 			include: {
-				// Include nested checklists and their items
 				checklists: {
 					include: {
 						items: true,
 					},
 				},
-				// Include attachments
 				attachments: true,
-				// Since labels are stored via a join table (TaskLabel)
-				// include the label data
 				labels: {
 					include: {
 						label: true,
@@ -67,9 +77,9 @@ export async function GET(
 		});
 
 		if (!task) {
-			return NextResponse.json(
-				{ error: 'Task not found' },
-				{ status: 404 }
+			return createErrorResponse(
+				{ code: 'NOT_FOUND', message: 'Task not found' },
+				404
 			);
 		}
 
@@ -79,12 +89,12 @@ export async function GET(
 			labels: task.labels.map((tl) => tl.label),
 		};
 
-		return NextResponse.json(transformedTask);
+		return createSuccessResponse({ task: transformedTask });
 	} catch (error) {
-		console.error(error);
-		return NextResponse.json(
-			{ error: 'Error fetching task details' },
-			{ status: 500 }
+		console.error('Error fetching task details:', error);
+		return createErrorResponse(
+			{ code: 'INTERNAL_ERROR', message: 'Error fetching task details' },
+			500
 		);
 	}
 }
@@ -93,17 +103,71 @@ export async function PATCH(
 	request: Request,
 	props: { params: Promise<{ boardId: string; taskId: string }> }
 ) {
-	const { taskId } = await props.params;
+	const supabase = await createClient();
+	const {
+		data: { user },
+		error: authError,
+	} = await supabase.auth.getUser();
+
+	if (authError || !user) {
+		return createErrorResponse(
+			{ code: 'UNAUTHORIZED', message: 'Unauthorized' },
+			401
+		);
+	}
+
+	const { taskId, boardId } = await props.params;
+
+	// Check permissions
+	const board = await prisma.board.findUnique({
+		where: { id: boardId },
+		include: { project: true },
+	});
+
+	if (!board) {
+		return createErrorResponse(
+			{ code: 'NOT_FOUND', message: 'Board not found' },
+			404
+		);
+	}
+
+	const teamId = board.project.teamId;
+	const userPermissions = await getUserPermissions(user.id, teamId);
+
+	if (!userPermissions['editTasks'] && !userPermissions['*']) {
+		return createErrorResponse(
+			{
+				code: 'FORBIDDEN',
+				message: 'You do not have permission to edit tasks',
+			},
+			403
+		);
+	}
+
+	// Rate limiting
+	const rateLimitResult = await rateLimit(user.id, 'updateTask', 20, 3600); // 20 updates per hour
+	if (!rateLimitResult.success) {
+		return createErrorResponse(
+			{
+				code: 'RATE_LIMIT_EXCEEDED',
+				message: 'Too many update requests',
+			},
+			429
+		);
+	}
 
 	try {
 		const body = await request.json();
-		// Expecting the payload to include:
-		// title, description, dueDate, checklists, attachments, labels.
+		const validationResult = validateUpdateTask(body);
+		if ('error' in validationResult) {
+			return validationResult;
+		}
+
 		const { title, description, dueDate, checklists, attachments, labels } =
 			body;
 
 		const updatedTask = await prisma.$transaction(async (tx) => {
-			// Update main task fields.
+			// Update main task fields
 			await tx.task.update({
 				where: { id: taskId },
 				data: {
@@ -113,36 +177,38 @@ export async function PATCH(
 				},
 			});
 
-			// --- Update Checklists ---
-			// Remove all existing checklists for the task.
+			// Update Checklists
 			await tx.checklist.deleteMany({
 				where: { taskId: taskId },
 			});
-			// Create new checklists along with their checklist items.
+
 			if (checklists && Array.isArray(checklists)) {
 				for (const cl of checklists) {
-					// Each checklist should have a name and an items array.
 					await tx.checklist.create({
 						data: {
 							name: cl.name,
 							task: { connect: { id: taskId } },
 							items: {
-								create: cl.items.map((item: any) => ({
-									text: item.text,
-									completed: item.completed,
-								})),
+								create: cl.items.map(
+									(item: {
+										text: string;
+										completed: boolean;
+									}) => ({
+										text: item.text,
+										completed: item.completed,
+									})
+								),
 							},
 						},
 					});
 				}
 			}
 
-			// --- Update Attachments ---
-			// Remove all existing attachments.
+			// Update Attachments
 			await tx.fileAttachment.deleteMany({
 				where: { taskId: taskId },
 			});
-			// Create new attachment records.
+
 			if (attachments && Array.isArray(attachments)) {
 				for (const att of attachments) {
 					await tx.fileAttachment.create({
@@ -157,12 +223,11 @@ export async function PATCH(
 				}
 			}
 
-			// --- Update Labels ---
-			// Remove existing TaskLabel join records.
+			// Update Labels
 			await tx.taskLabel.deleteMany({
 				where: { taskId: taskId },
 			});
-			// Create new join records linking the task to labels.
+
 			if (labels && Array.isArray(labels)) {
 				for (const lbl of labels) {
 					await tx.taskLabel.create({
@@ -174,8 +239,8 @@ export async function PATCH(
 				}
 			}
 
-			// Return the updated task details.
-			const fullTask = await tx.task.findUnique({
+			// Return the updated task details
+			return await tx.task.findUnique({
 				where: { id: taskId },
 				include: {
 					checklists: {
@@ -185,20 +250,27 @@ export async function PATCH(
 					labels: { include: { label: true } },
 				},
 			});
-			return fullTask;
 		});
 
-		// Transform TaskLabel join objects into an array of Label objects.
+		if (!updatedTask) {
+			return createErrorResponse(
+				{ code: 'NOT_FOUND', message: 'Task not found' },
+				404
+			);
+		}
+
+		// Transform TaskLabel join objects into an array of Label objects
 		const transformedTask = {
 			...updatedTask,
-			labels: updatedTask?.labels.map((tl) => tl.label),
+			labels: updatedTask.labels.map((tl) => tl.label),
 		};
-		return NextResponse.json(transformedTask);
+
+		return createSuccessResponse({ task: transformedTask });
 	} catch (error) {
-		console.error(error);
-		return NextResponse.json(
-			{ error: 'Error updating task details' },
-			{ status: 500 }
+		console.error('Error updating task details:', error);
+		return createErrorResponse(
+			{ code: 'INTERNAL_ERROR', message: 'Error updating task details' },
+			500
 		);
 	}
 }

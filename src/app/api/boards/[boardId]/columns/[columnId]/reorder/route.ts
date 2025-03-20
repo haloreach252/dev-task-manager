@@ -1,40 +1,91 @@
 // src/app/api/boards/[boardId]/columns/[columnId]/reorder/route.ts
 
-import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
-import { checkPermissions } from '@/lib/permissions';
 import { createClient } from '@/lib/supabase';
+import prisma from '@/lib/prisma';
+import { getUserPermissions } from '@/lib/permissions';
+import { validateReorderColumn } from '../../types';
+import {
+	createErrorResponse,
+	createSuccessResponse,
+} from '@/app/api/shared/utils';
+import { rateLimit } from '@/lib/rate-limit';
 
 export async function PUT(
 	req: Request,
 	props: { params: Promise<{ boardId: string; columnId: string }> }
 ) {
-	const params = await props.params;
-	const { boardId, columnId } = params;
-	const { targetColumnId } = await req.json();
-
-	const supabase = await createClient();
-	const { data: { user }, error } = await supabase.auth.getUser();
-
-	if (!user || error) {
-		return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-	}
-
-	const project = await prisma.project.findFirst({
-		where: { boards: { some: { id: boardId }}}
-	})
-
-	if (!project) {
-		return NextResponse.json({ error: "Project not found" }, { status: 404})
-	}
-
-	const hasPermission = await checkPermissions(user.id, project.teamId, ['editColumns']);
-
-	if (!hasPermission) {
-		return NextResponse.json({ error: "Forbidden: You do not have permission to edit columns" }, { status: 403 });
-	}
-
 	try {
+		const { boardId, columnId } = await props.params;
+		const supabase = await createClient();
+		const {
+			data: { user },
+			error,
+		} = await supabase.auth.getUser();
+
+		if (!user || error) {
+			return createErrorResponse(
+				{
+					code: 'UNAUTHORIZED',
+					message: 'Unauthorized',
+				},
+				401
+			);
+		}
+
+		// Rate limiting
+		const { success } = await rateLimit(user.id, 'reorderColumn', 50, 3600); // 50 reorders per hour
+		if (!success) {
+			return createErrorResponse(
+				{
+					code: 'RATE_LIMIT_EXCEEDED',
+					message: 'You can only reorder columns 50 times per hour',
+				},
+				429
+			);
+		}
+
+		const board = await prisma.board.findUnique({
+			where: { id: boardId },
+			include: {
+				project: true,
+			},
+		});
+
+		if (!board) {
+			return createErrorResponse(
+				{
+					code: 'NOT_FOUND',
+					message: 'Board not found',
+				},
+				404
+			);
+		}
+
+		const userPermissions = await getUserPermissions(
+			user.id,
+			board.project.teamId
+		);
+		if (!userPermissions['editColumns'] && !userPermissions['*']) {
+			return createErrorResponse(
+				{
+					code: 'FORBIDDEN',
+					message:
+						'You do not have permission to reorder columns in this board',
+				},
+				403
+			);
+		}
+
+		const body = await req.json();
+
+		// Validate input
+		const validationError = validateReorderColumn(body);
+		if (validationError) {
+			return validationError;
+		}
+
+		const { targetColumnId } = body;
+
 		// Fetch both the dragged and target columns
 		const [draggedColumn, targetColumn] = await Promise.all([
 			prisma.column.findUnique({ where: { id: columnId } }),
@@ -43,9 +94,12 @@ export async function PUT(
 
 		// Validate existence
 		if (!draggedColumn || !targetColumn) {
-			return NextResponse.json(
-				{ error: 'One or both columns not found.' },
-				{ status: 404 }
+			return createErrorResponse(
+				{
+					code: 'NOT_FOUND',
+					message: 'One or both columns not found',
+				},
+				404
 			);
 		}
 
@@ -61,14 +115,17 @@ export async function PUT(
 			}),
 		]);
 
-		return NextResponse.json({
-			message: 'Columns reordered successfully.',
+		return createSuccessResponse({
+			message: 'Columns reordered successfully',
 		});
 	} catch (error) {
 		console.error('Column Reorder Error:', error);
-		return NextResponse.json(
-			{ error: 'Failed to reorder columns.' },
-			{ status: 500 }
+		return createErrorResponse(
+			{
+				code: 'INTERNAL_ERROR',
+				message: 'Failed to reorder columns',
+			},
+			500
 		);
 	}
 }

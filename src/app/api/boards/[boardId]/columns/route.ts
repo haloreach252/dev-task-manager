@@ -1,38 +1,68 @@
 // src/app/api/boards/[boardId]/columns/route.ts
 
-import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
 import { createClient } from '@/lib/supabase';
-import { checkPermissions } from '@/lib/permissions';
+import prisma from '@/lib/prisma';
+import { getUserPermissions } from '@/lib/permissions';
+import { validateCreateColumn, type ColumnsResponse } from './types';
+import {
+	createErrorResponse,
+	createSuccessResponse,
+} from '@/app/api/shared/utils';
+import { rateLimit } from '@/lib/rate-limit';
 
 export async function GET(
 	req: Request,
 	props: { params: Promise<{ boardId: string }> }
 ) {
-	const { boardId } = await props.params;
-
-	const supabase = await createClient();
-	const { data: { user }, error } = await supabase.auth.getUser();
-
-	if (!user || error) {
-		return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-	}
-
-	const project = await prisma.project.findFirst({
-		where: { boards: { some: { id: boardId }}}
-	})
-
-	if (!project) {
-		return NextResponse.json({ error: "Project not found" }, { status: 404})
-	}
-
-	const hasPermission = await checkPermissions(user.id, project.teamId, ['viewBoards']);
-
-	if (!hasPermission) {
-		return NextResponse.json({ error: "Forbidden: You do not have permission to edit columns" }, { status: 403 });
-	}
-
 	try {
+		const { boardId } = await props.params;
+		const supabase = await createClient();
+		const {
+			data: { user },
+			error,
+		} = await supabase.auth.getUser();
+
+		if (!user || error) {
+			return createErrorResponse(
+				{
+					code: 'UNAUTHORIZED',
+					message: 'Unauthorized',
+				},
+				401
+			);
+		}
+
+		const board = await prisma.board.findUnique({
+			where: { id: boardId },
+			include: {
+				project: true,
+			},
+		});
+
+		if (!board) {
+			return createErrorResponse(
+				{
+					code: 'NOT_FOUND',
+					message: 'Board not found',
+				},
+				404
+			);
+		}
+
+		const userPermissions = await getUserPermissions(
+			user.id,
+			board.project.teamId
+		);
+		if (!userPermissions['viewBoards'] && !userPermissions['*']) {
+			return createErrorResponse(
+				{
+					code: 'FORBIDDEN',
+					message: 'You do not have permission to view this board',
+				},
+				403
+			);
+		}
+
 		const columns = await prisma.column.findMany({
 			where: { boardId },
 			orderBy: { order: 'asc' },
@@ -53,16 +83,25 @@ export async function GET(
 			...column,
 			tasks: column.tasks.map((task) => ({
 				...task,
-				labels: task.labels.map((taskLabel) => taskLabel.label),
+				labels: task.labels.map((taskLabel) => ({
+					id: taskLabel.label.id,
+					name: taskLabel.label.name,
+					color: taskLabel.label.backgroundColor || '#000000',
+				})),
 			})),
 		}));
 
-		return NextResponse.json(transformedColumns);
+		return createSuccessResponse<ColumnsResponse>({
+			columns: transformedColumns,
+		});
 	} catch (error) {
 		console.error('GET Columns Error:', error);
-		return NextResponse.json(
-			{ error: 'Failed to fetch columns' },
-			{ status: 500 }
+		return createErrorResponse(
+			{
+				code: 'INTERNAL_ERROR',
+				message: 'Failed to fetch columns',
+			},
+			500
 		);
 	}
 }
@@ -71,10 +110,76 @@ export async function POST(
 	req: Request,
 	props: { params: Promise<{ boardId: string }> }
 ) {
-	const { boardId } = await props.params;
-	const { title } = await req.json();
-
 	try {
+		const { boardId } = await props.params;
+		const supabase = await createClient();
+		const {
+			data: { user },
+			error,
+		} = await supabase.auth.getUser();
+
+		if (!user || error) {
+			return createErrorResponse(
+				{
+					code: 'UNAUTHORIZED',
+					message: 'Unauthorized',
+				},
+				401
+			);
+		}
+
+		// Rate limiting
+		const { success } = await rateLimit(user.id, 'createColumn', 20, 3600); // 20 columns per hour
+		if (!success) {
+			return createErrorResponse(
+				{
+					code: 'RATE_LIMIT_EXCEEDED',
+					message: 'You can only create 20 columns per hour',
+				},
+				429
+			);
+		}
+
+		const board = await prisma.board.findUnique({
+			where: { id: boardId },
+			include: {
+				project: true,
+			},
+		});
+
+		if (!board) {
+			return createErrorResponse(
+				{
+					code: 'NOT_FOUND',
+					message: 'Board not found',
+				},
+				404
+			);
+		}
+
+		const userPermissions = await getUserPermissions(
+			user.id,
+			board.project.teamId
+		);
+		if (!userPermissions['editColumns'] && !userPermissions['*']) {
+			return createErrorResponse(
+				{
+					code: 'FORBIDDEN',
+					message:
+						'You do not have permission to create columns in this board',
+				},
+				403
+			);
+		}
+
+		const body = await req.json();
+
+		// Validate input
+		const validationError = validateCreateColumn(body);
+		if (validationError) {
+			return validationError;
+		}
+
 		const existingColumns = await prisma.column.findMany({
 			where: { boardId },
 		});
@@ -83,18 +188,21 @@ export async function POST(
 
 		const newColumn = await prisma.column.create({
 			data: {
-				title,
+				title: body.title,
 				order,
 				boardId,
 			},
 		});
 
-		return NextResponse.json(newColumn);
+		return createSuccessResponse(newColumn);
 	} catch (error) {
 		console.error('POST Column Error:', error);
-		return NextResponse.json(
-			{ error: 'Failed to create column' },
-			{ status: 500 }
+		return createErrorResponse(
+			{
+				code: 'INTERNAL_ERROR',
+				message: 'Failed to create column',
+			},
+			500
 		);
 	}
 }
