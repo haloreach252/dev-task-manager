@@ -237,8 +237,6 @@ async function seedModel(modelName: string, count: number = 1) {
 				}
 				break;
 
-			// Add more special cases as needed...
-
 			default:
 				// For models without special requirements
 				const model = modelName.toLowerCase() as ModelName;

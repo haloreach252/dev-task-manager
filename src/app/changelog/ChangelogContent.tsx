@@ -20,9 +20,13 @@ interface PaginatedResponse {
 	totalItems: number;
 }
 
-interface ErrorResponse {
-	code: string;
-	message: string;
+interface ApiResponse<T> {
+	success: boolean;
+	data?: T;
+	error?: {
+		code: string;
+		message: string;
+	};
 }
 
 export default function ChangelogContent() {
@@ -40,16 +44,15 @@ export default function ChangelogContent() {
 				const response = await fetch(
 					`/api/changelog?page=${currentPage}`
 				);
-				const data = await response.json();
+				const result = await response.json();
 
-				if (!response.ok) {
-					const errorData = data as ErrorResponse;
+				if (!response.ok || !result.success) {
 					throw new Error(
-						errorData.message || 'Failed to fetch changelog'
+						result.error?.message || 'Failed to fetch changelog'
 					);
 				}
 
-				const paginatedData = data as PaginatedResponse;
+				const paginatedData = result.data as PaginatedResponse;
 				// Ensure data is an array
 				setChangelog(
 					Array.isArray(paginatedData.data) ? paginatedData.data : []
